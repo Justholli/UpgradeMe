@@ -2,6 +2,11 @@
 
 package com.aesthetic.tracker.ui
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -64,8 +69,14 @@ import com.aesthetic.tracker.data.HabitEntry
 import com.aesthetic.tracker.data.MeasurementEntry
 import com.aesthetic.tracker.data.Recommendation
 import com.aesthetic.tracker.data.RecommendationPriority
+import com.aesthetic.tracker.data.ScaleScreenshotImport
+import com.aesthetic.tracker.domain.FoodGoal
+import com.aesthetic.tracker.domain.FoodRecommendations
 import com.aesthetic.tracker.domain.PlanTargets
 import com.aesthetic.tracker.domain.format
+import java.io.File
+import java.net.URLEncoder
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +114,8 @@ fun AestheticApp(state: AestheticState, onAction: (AestheticAction) -> Unit) {
                     TrackerScreen.Dashboard -> DashboardScreen(state)
                     TrackerScreen.TodayPlan -> TodayPlanScreen(state, onAction)
                     TrackerScreen.Measurements -> MeasurementsScreen(state, onAction)
-                    TrackerScreen.Recommendations -> RecommendationsScreen(state)
+                    TrackerScreen.Recommendations -> RecommendationsScreen(state, onAction)
+                    TrackerScreen.Food -> FoodRecommendationScreen(state, onAction)
                 }
             }
         }
@@ -190,12 +202,28 @@ fun TodayPlanScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) 
 
 @Composable
 fun MeasurementsScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var weight by remember { mutableStateOf(state.measurements.firstOrNull()?.weightKg?.toString() ?: "70.4") }
     var bodyFat by remember { mutableStateOf(state.measurements.firstOrNull()?.bodyFatPercent?.toString() ?: "18.0") }
     var muscle by remember { mutableStateOf(state.measurements.firstOrNull()?.skeletalMuscleKg?.toString() ?: "29.0") }
     var pulse by remember { mutableStateOf(state.measurements.firstOrNull()?.pulse?.toString() ?: "102") }
     var visceral by remember { mutableStateOf(state.measurements.firstOrNull()?.visceralFat?.toString() ?: "8") }
     var water by remember { mutableStateOf(state.measurements.firstOrNull()?.waterPercent?.toString() ?: "55.0") }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let {
+            copyScaleScreenshot(context, it)?.let { path ->
+                onAction(
+                    AestheticAction.SaveScaleImport(
+                        ScaleScreenshotImport(
+                            id = UUID.randomUUID().toString(),
+                            createdAtEpochMillis = System.currentTimeMillis(),
+                            localPath = path,
+                        ),
+                    ),
+                )
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -203,7 +231,17 @@ fun MeasurementsScreen(state: AestheticState, onAction: (AestheticAction) -> Uni
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            SectionTitle("Today's measurement")
+            SectionTitle("Smart scale screenshot import")
+            InfoCard {
+                Text("Photos stay local. AI parsing runs only after you tap the parser button, and you confirm values before saving a MeasurementEntry.")
+                Button(modifier = Modifier.fillMaxWidth(), onClick = { imagePicker.launch("image/*") }) {
+                    Text("Upload/select smart scale screenshot")
+                }
+            }
+        }
+        items(state.scaleImports) { scaleImport -> ScaleImportCard(scaleImport, onAction) }
+        item {
+            SectionTitle("Manual measurement")
             InfoCard {
                 NumberField("Weight (kg)", weight) { weight = it }
                 NumberField("Body fat (%)", bodyFat) { bodyFat = it }
@@ -229,12 +267,12 @@ fun MeasurementsScreen(state: AestheticState, onAction: (AestheticAction) -> Uni
             }
         }
         item { SectionTitle("History") }
-        items(state.measurements) { entry -> MeasurementCard(entry) }
+        items(state.measurements) { entry -> MeasurementCard(entry, onAction) }
     }
 }
 
 @Composable
-fun RecommendationsScreen(state: AestheticState) {
+fun RecommendationsScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
@@ -243,10 +281,125 @@ fun RecommendationsScreen(state: AestheticState) {
         item {
             HeaderCard("Coach recommendations", "Generated from pulse, fat loss rate, body-fat trend, and muscle trend") {
                 Text("Update measurements weekly for more accurate trend advice.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Button(onClick = { onAction(AestheticAction.GenerateAiAnalysis) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Generate AI analysis")
+                }
             }
+        }
+        state.aiAnalysis?.let { analysis ->
+            item { AiAnalysisCard("What improved", analysis.improved) }
+            item { AiAnalysisCard("What got worse", analysis.worsened) }
+            item { AiAnalysisCard("What to change today", analysis.changeToday) }
+            item { AiAnalysisCard("Risk flags", analysis.riskFlags) }
         }
         items(state.recommendations) { recommendation -> RecommendationCard(recommendation) }
     }
+}
+
+@Composable
+private fun ScaleImportCard(scaleImport: ScaleScreenshotImport, onAction: (AestheticAction) -> Unit) {
+    InfoCard {
+        Text("Local screenshot", fontWeight = FontWeight.Bold)
+        Text(scaleImport.localPath, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (scaleImport.isParsed) {
+            Text("Parsed values for confirmation", fontWeight = FontWeight.Bold)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ParsedChip("Weight", scaleImport.parsedWeightKg?.let { "${it.format(1)} kg" })
+                ParsedChip("Body fat", scaleImport.parsedBodyFatPercent?.let { "${it.format(1)}%" })
+                ParsedChip("BMI", scaleImport.parsedBmi?.let { it.format(1) })
+                ParsedChip("Muscle mass", scaleImport.parsedMuscleMassKg?.let { "${it.format(1)} kg" })
+                ParsedChip("Skeletal muscle", scaleImport.parsedSkeletalMuscleKg?.let { "${it.format(1)} kg" })
+                ParsedChip("Water", scaleImport.parsedWaterPercent?.let { "${it.format(1)}%" })
+                ParsedChip("Protein", scaleImport.parsedProteinPercent?.let { "${it.format(1)}%" })
+                ParsedChip("Visceral fat", scaleImport.parsedVisceralFat?.toString())
+                ParsedChip("BMR", scaleImport.parsedBasalMetabolismKcal?.let { "$it kcal" })
+                ParsedChip("Bio age", scaleImport.parsedBiologicalAge?.toString())
+                ParsedChip("Pulse", scaleImport.parsedPulse?.let { "$it bpm" })
+            }
+            Button(onClick = { onAction(AestheticAction.ConfirmParsedScaleImport(scaleImport)) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Confirm and save MeasurementEntry")
+            }
+        } else {
+            Button(onClick = { onAction(AestheticAction.ParseScaleImport(scaleImport)) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Send image to AI parser")
+            }
+        }
+        Button(onClick = { onAction(AestheticAction.DeleteScaleImport(scaleImport)) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Delete local photo")
+        }
+    }
+}
+
+@Composable
+private fun ParsedChip(label: String, value: String?) {
+    AssistChip(onClick = {}, label = { Text("$label: ${value ?: "—"}") })
+}
+
+@Composable
+private fun AiAnalysisCard(title: String, lines: List<String>) {
+    InfoCard {
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        lines.forEach { Text("• $it", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+
+@Composable
+fun FoodRecommendationScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val dishes = FoodRecommendations.filter { state.selectedFoodGoal in it.goals }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item {
+            HeaderCard("Food recommendations", "Delivery-friendly meals for today's goal") {
+                Text("MVP uses Yandex Food search links only; no API integration yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FoodGoal.entries.forEach { goal ->
+                    AssistChip(
+                        onClick = { onAction(AestheticAction.SelectFoodGoal(goal)) },
+                        label = { Text(if (state.selectedFoodGoal == goal) "✓ ${goal.label}" else goal.label) },
+                    )
+                }
+            }
+        }
+        items(dishes) { dish -> FoodDishCard(dish, context) }
+    }
+}
+
+@Composable
+private fun FoodDishCard(dish: com.aesthetic.tracker.domain.FoodRecommendation, context: Context) {
+    InfoCard {
+        Text(dish.dish, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Calories: ${dish.caloriesEstimate}")
+        Text("Protein: ${dish.proteinEstimate}")
+        Text("Why it fits: ${dish.whyItFits}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Avoid: ${dish.avoid}", color = MaterialTheme.colorScheme.error)
+        Button(onClick = { openYandexFood(context, dish.yandexQuery) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Открыть в Яндекс Еде")
+        }
+    }
+}
+
+private fun copyScaleScreenshot(context: Context, uri: Uri): String? {
+    val dir = File(context.filesDir, "scale-screenshots").apply { mkdirs() }
+    val file = File(dir, "${System.currentTimeMillis()}-${UUID.randomUUID()}.jpg")
+    return runCatching {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            file.outputStream().use { output -> input.copyTo(output) }
+        }
+        file.absolutePath
+    }.getOrNull()
+}
+
+private fun openYandexFood(context: Context, query: String) {
+    val encoded = URLEncoder.encode(query, "UTF-8")
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://eda.yandex.ru/search?text=$encoded"))
+    context.startActivity(intent)
 }
 
 @Composable
@@ -312,7 +465,7 @@ private fun HabitRow(habit: HabitKind, checked: Boolean, onToggle: () -> Unit) {
 }
 
 @Composable
-private fun MeasurementCard(entry: MeasurementEntry) {
+private fun MeasurementCard(entry: MeasurementEntry, onAction: ((AestheticAction) -> Unit)? = null) {
     InfoCard {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(entry.date.toString(), fontWeight = FontWeight.Bold)
@@ -325,6 +478,15 @@ private fun MeasurementCard(entry: MeasurementEntry) {
             AssistChip(onClick = {}, label = { Text("Pulse ${entry.pulse}") })
             AssistChip(onClick = {}, label = { Text("Visceral ${entry.visceralFat}") })
             AssistChip(onClick = {}, label = { Text("Water ${entry.waterPercent.format(1)}%") })
+            entry.bmi?.let { AssistChip(onClick = {}, label = { Text("BMI ${it.format(1)}") }) }
+            entry.muscleMassKg?.let { AssistChip(onClick = {}, label = { Text("Muscle mass ${it.format(1)} kg") }) }
+            entry.proteinPercent?.let { AssistChip(onClick = {}, label = { Text("Protein ${it.format(1)}%") }) }
+            entry.basalMetabolismKcal?.let { AssistChip(onClick = {}, label = { Text("BMR $it kcal") }) }
+            entry.biologicalAge?.let { AssistChip(onClick = {}, label = { Text("Bio age $it") }) }
+        }
+        entry.scalePhotoPath?.let { Text("Photo stored locally: $it", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        onAction?.let {
+            Button(onClick = { it(AestheticAction.DeleteMeasurement(entry)) }, modifier = Modifier.fillMaxWidth()) { Text("Delete parsed entry") }
         }
     }
 }
@@ -385,6 +547,7 @@ private fun TrackerScreen.icon(): ImageVector = when (this) {
     TrackerScreen.TodayPlan -> Icons.Default.FitnessCenter
     TrackerScreen.Measurements -> Icons.Default.MonitorHeart
     TrackerScreen.Recommendations -> Icons.Default.CheckCircle
+    TrackerScreen.Food -> Icons.Default.Restaurant
 }
 
 private fun HabitKind.icon(): ImageVector = when (this) {

@@ -1,0 +1,95 @@
+package com.aesthetic.tracker.domain
+
+enum class FoodGoal(val label: String) {
+    Breakfast("breakfast"),
+    Lunch("lunch"),
+    Dinner("dinner"),
+    HighProtein("high protein"),
+    LowSalt("low salt"),
+    PostWorkout("post workout"),
+}
+
+data class FoodRecommendation(
+    val dish: String,
+    val caloriesEstimate: String,
+    val proteinEstimate: String,
+    val whyItFits: String,
+    val avoid: String,
+    val yandexQuery: String,
+    val goals: Set<FoodGoal>,
+)
+
+val FoodRecommendations = listOf(
+    FoodRecommendation(
+        dish = "Poke bowl with chicken or salmon",
+        caloriesEstimate = "520-750 kcal",
+        proteinEstimate = "32-45 g protein",
+        whyItFits = "Balanced protein, rice, vegetables, and easy sauce control for recomposition.",
+        avoid = "Mayo, tempura toppings, sweet drinks, and extra sauces.",
+        yandexQuery = "поке лосось",
+        goals = setOf(FoodGoal.Lunch, FoodGoal.Dinner, FoodGoal.HighProtein, FoodGoal.PostWorkout),
+    ),
+    FoodRecommendation(
+        dish = "Grilled chicken + rice + vegetables",
+        caloriesEstimate = "480-680 kcal",
+        proteinEstimate = "38-55 g protein",
+        whyItFits = "Simple high-protein plate with carbs for training and vegetables for fullness.",
+        avoid = "Fried sides, creamy sauces, sweet drinks, and extra oil.",
+        yandexQuery = "гриль курица рис овощи",
+        goals = setOf(FoodGoal.Lunch, FoodGoal.Dinner, FoodGoal.HighProtein, FoodGoal.LowSalt, FoodGoal.PostWorkout),
+    ),
+    FoodRecommendation(
+        dish = "Turkey or chicken salad",
+        caloriesEstimate = "350-550 kcal",
+        proteinEstimate = "28-42 g protein",
+        whyItFits = "Lean protein and high volume when you need a lighter delivery order.",
+        avoid = "Mayo dressing, croutons, fried chicken, and extra sauces.",
+        yandexQuery = "салат индейка",
+        goals = setOf(FoodGoal.Lunch, FoodGoal.Dinner, FoodGoal.HighProtein, FoodGoal.LowSalt),
+    ),
+    FoodRecommendation(
+        dish = "Omelet / eggs + cottage cheese",
+        caloriesEstimate = "380-600 kcal",
+        proteinEstimate = "30-45 g protein",
+        whyItFits = "Breakfast-friendly protein with slow-digesting cottage cheese for satiety.",
+        avoid = "Mayo, fried potatoes, sweet drinks, and heavy cheese sauces.",
+        yandexQuery = "омлет творог",
+        goals = setOf(FoodGoal.Breakfast, FoodGoal.HighProtein),
+    ),
+    FoodRecommendation(
+        dish = "Greek yogurt + berries",
+        caloriesEstimate = "250-420 kcal",
+        proteinEstimate = "18-30 g protein",
+        whyItFits = "Light breakfast or snack that supports protein without a heavy salt load.",
+        avoid = "Sweet syrups, granola overload, pastries, and sugary drinks.",
+        yandexQuery = "греческий йогурт ягоды",
+        goals = setOf(FoodGoal.Breakfast, FoodGoal.LowSalt),
+    ),
+    FoodRecommendation(
+        dish = "Beef/chicken shawarma without mayo",
+        caloriesEstimate = "500-750 kcal",
+        proteinEstimate = "30-45 g protein",
+        whyItFits = "Available almost everywhere and can work if sauce and fried sides are controlled.",
+        avoid = "Mayo, fries, sweet drinks, and extra sauces.",
+        yandexQuery = "шаурма курица без майонеза",
+        goals = setOf(FoodGoal.Lunch, FoodGoal.Dinner, FoodGoal.HighProtein),
+    ),
+    FoodRecommendation(
+        dish = "Tom yum with seafood",
+        caloriesEstimate = "300-520 kcal",
+        proteinEstimate = "22-35 g protein",
+        whyItFits = "Seafood protein and soup volume make it filling without a huge calorie load.",
+        avoid = "Extra coconut cream, fried sides, sweet drinks, and salty add-ons.",
+        yandexQuery = "том ям морепродукты",
+        goals = setOf(FoodGoal.Lunch, FoodGoal.Dinner, FoodGoal.LowSalt),
+    ),
+    FoodRecommendation(
+        dish = "Soup + protein main dish",
+        caloriesEstimate = "550-800 kcal",
+        proteinEstimate = "35-55 g protein",
+        whyItFits = "Soup improves fullness and the protein main dish keeps the meal plan aligned.",
+        avoid = "Cream soups, fried sides, mayo, sweet drinks, and extra sauces.",
+        yandexQuery = "суп курица рис овощи",
+        goals = setOf(FoodGoal.Lunch, FoodGoal.Dinner, FoodGoal.HighProtein),
+    ),
+)
