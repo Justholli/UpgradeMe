@@ -1,0 +1,126 @@
+<resources>
+    <string name="app_name">Aesthetic Tracker</string>
+
+    <string name="screen_general_data">Общие данные</string>
+    <string name="screen_dashboard">Обзор</string>
+    <string name="screen_today">Сегодня</string>
+    <string name="screen_upload_results">Загрузка и результаты</string>
+    <string name="screen_measurements">Замеры</string>
+    <string name="screen_coach">Коуч</string>
+    <string name="screen_food">Еда</string>
+
+    <string name="habit_water">Вода</string>
+    <string name="habit_steps">Шаги</string>
+    <string name="habit_protein">Белок</string>
+    <string name="habit_workout">Тренировка</string>
+    <string name="habit_posture">Осанка</string>
+    <string name="habit_sleep">Сон</string>
+
+    <string name="food_goal_breakfast">Завтрак</string>
+    <string name="food_goal_lunch">Обед</string>
+    <string name="food_goal_dinner">Ужин</string>
+    <string name="food_goal_high_protein">Больше белка</string>
+    <string name="food_goal_low_salt">Меньше соли</string>
+    <string name="food_goal_post_workout">После тренировки</string>
+
+    <string name="week_day_title">Неделя %1$d, день %2$d</string>
+    <string name="plan_progress_subtitle">12-недельный план рекомпозиции - выполнено %1$s%%</string>
+    <string name="progress_from_baseline">Прогресс от старта</string>
+    <string name="metric_weight">Вес</string>
+    <string name="metric_body_fat">Жир</string>
+    <string name="metric_muscle">Мышцы</string>
+    <string name="metric_pulse">Пульс</string>
+    <string name="target_range">Целевой диапазон</string>
+    <string name="target_weight">Вес: %1$s-%2$s кг</string>
+    <string name="target_body_fat">Жир: %1$s-%2$s%%</string>
+    <string name="target_skeletal_muscle">Скелетные мышцы: +%1$s-%2$s кг</string>
+    <string name="target_pulse">Пульс: снизить тренд покоя от %1$d уд/мин</string>
+    <string name="todays_habits">Привычки на сегодня</string>
+    <string name="latest_measurement">Последний замер</string>
+    <string name="empty_measurements">Замеров пока нет. Добавьте сегодняшнюю отметку, чтобы отслеживать тренды.</string>
+
+    <string name="todays_plan">План на сегодня</string>
+    <string name="week_day_short">Неделя %1$d - день %2$d</string>
+    <string name="fallback_focus">Собрать регулярность</string>
+    <string name="workout">Тренировка</string>
+    <string name="food_goal">Цель питания</string>
+    <string name="generate_today_plan">Сгенерировать GPT-план на сегодня</string>
+    <string name="refresh_today_plan">Обновить план на сегодня</string>
+    <string name="nutrition_today">Питание сегодня</string>
+    <string name="recovery_today">Восстановление сегодня</string>
+    <string name="execution_checkpoints">Контроль выполнения</string>
+    <string name="today_plan_needs_data">Добавьте замер или загрузку весов, чтобы следующий план использовал реальные тренды.</string>
+    <string name="daily_habit_checklist">Чеклист привычек</string>
+
+    <string name="smart_scale_import">Импорт скриншота весов</string>
+    <string name="upload_results_overview">Загрузка и обзор результатов</string>
+    <string name="upload_results_subtitle">Загрузите данные весов, подтвердите распознавание и проверьте последние результаты.</string>
+    <string name="result_recommendations">Обзор результатов</string>
+    <string name="smart_scale_privacy">Фото остаются на устройстве. AI-разбор запускается только после нажатия кнопки, а значения сохраняются после подтверждения.</string>
+    <string name="upload_scale_screenshot">Загрузить скриншот весов</string>
+    <string name="manual_measurement">Ручной замер</string>
+    <string name="field_weight_kg">Вес (кг)</string>
+    <string name="field_body_fat_percent">Жир (%)</string>
+    <string name="field_skeletal_muscle_kg">Скелетные мышцы (кг)</string>
+    <string name="field_resting_pulse">Пульс покоя (уд/мин)</string>
+    <string name="field_visceral_fat">Висцеральный жир</string>
+    <string name="field_water_percent">Вода (%)</string>
+    <string name="save_check_in">Сохранить замер</string>
+    <string name="history">История</string>
+
+    <string name="coach_recommendations">Рекомендации коуча</string>
+    <string name="coach_recommendations_subtitle">По пульсу, темпу снижения веса, тренду жира и мышц</string>
+    <string name="coach_update_hint">Обновляйте замеры раз в неделю, чтобы советы были точнее.</string>
+    <string name="generate_ai_analysis">Сгенерировать AI-анализ</string>
+    <string name="ai_improved">Что улучшилось</string>
+    <string name="ai_worsened">Что ухудшилось</string>
+    <string name="ai_change_today">Что изменить сегодня</string>
+    <string name="ai_risk_flags">Риски</string>
+
+    <string name="local_screenshot">Локальный скриншот</string>
+    <string name="parsed_values">Распознанные значения для подтверждения</string>
+    <string name="parsed_weight">Вес</string>
+    <string name="parsed_body_fat">Жир</string>
+    <string name="parsed_bmi">ИМТ</string>
+    <string name="parsed_muscle_mass">Мышечная масса</string>
+    <string name="parsed_skeletal_muscle">Скелетные мышцы</string>
+    <string name="parsed_water">Вода</string>
+    <string name="parsed_protein">Белок</string>
+    <string name="parsed_visceral_fat">Висцеральный жир</string>
+    <string name="parsed_bmr">BMR</string>
+    <string name="parsed_bio_age">Биовозраст</string>
+    <string name="parsed_pulse">Пульс</string>
+    <string name="parsed_chip">%1$s: %2$s</string>
+    <string name="parsed_unknown">?</string>
+    <string name="confirm_parsed_entry">Подтвердить и сохранить замер</string>
+    <string name="send_to_ai_parser">Отправить фото в AI-разбор</string>
+    <string name="delete_local_photo">Удалить локальное фото</string>
+
+    <string name="food_recommendations">Рекомендации по еде</string>
+    <string name="food_recommendations_subtitle">Блюда из доставки под сегодняшнюю цель</string>
+    <string name="food_mvp_hint">В MVP используются только ссылки поиска Яндекс Еды, без API-интеграции.</string>
+    <string name="selected_goal_prefix">Выбрано: %1$s</string>
+    <string name="calories">Калории: %1$s</string>
+    <string name="protein">Белок: %1$s</string>
+    <string name="why_it_fits">Почему подходит: %1$s</string>
+    <string name="avoid">Избегать: %1$s</string>
+    <string name="open_yandex_food">Открыть в Яндекс Еде</string>
+
+    <string name="habit_complete_count">%1$d/%2$d выполнено</string>
+    <string name="habit_summary">Вода - шаги - белок - тренировка - осанка - сон</string>
+    <string name="fat_chip">Жир %1$s%%</string>
+    <string name="muscle_chip">Мышцы %1$s кг</string>
+    <string name="pulse_chip">Пульс %1$d</string>
+    <string name="visceral_chip">Висцеральный %1$d</string>
+    <string name="water_chip">Вода %1$s%%</string>
+    <string name="bmi_chip">ИМТ %1$s</string>
+    <string name="muscle_mass_chip">Мышечная масса %1$s кг</string>
+    <string name="protein_chip">Белок %1$s%%</string>
+    <string name="bmr_chip">BMR %1$d ккал</string>
+    <string name="bio_age_chip">Биовозраст %1$d</string>
+    <string name="photo_stored_locally">Фото хранится локально: %1$s</string>
+    <string name="delete_parsed_entry">Удалить распознанный замер</string>
+    <string name="priority_high">Высокий</string>
+    <string name="priority_medium">Средний</string>
+    <string name="priority_low">Низкий</string>
+</resources>

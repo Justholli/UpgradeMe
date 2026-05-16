@@ -6,11 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.aesthetic.tracker.data.AestheticRepository
 import com.aesthetic.tracker.data.MeasurementEntry
 import com.aesthetic.tracker.domain.AiScaleParser
-import com.aesthetic.tracker.domain.buildAiAnalysis
+import com.aesthetic.tracker.domain.buildGeneratedTodayPlan
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
@@ -21,10 +24,10 @@ class AestheticViewModel(private val repository: AestheticRepository) : ViewMode
     val state: StateFlow<AestheticState> = _state.asStateFlow()
 
     init {
-        viewModelScope.launch { repository.ensureWorkoutPlan() }
         viewModelScope.launch {
-            combine(repository.measurements, repository.habits, repository.workoutPlan, repository.scaleImports) { measurements, habits, plan, imports ->
-                AestheticMutation.DataLoaded(measurements, habits, plan, imports, LocalDate.now())
+            repository.ensureWorkoutPlan()
+            combine(repository.measurements, repository.habits, repository.workoutPlan, repository.scaleImports, todayTicker()) { measurements, habits, plan, imports, today ->
+                AestheticMutation.DataLoaded(measurements, habits, plan, imports, today)
             }.collect { mutation -> commit(mutation) }
         }
     }
@@ -39,7 +42,7 @@ class AestheticViewModel(private val repository: AestheticRepository) : ViewMode
             is AestheticAction.ConfirmParsedScaleImport -> confirmParsedScaleImport(action)
             is AestheticAction.DeleteScaleImport -> deleteScaleImport(action)
             is AestheticAction.DeleteMeasurement -> deleteMeasurement(action)
-            is AestheticAction.GenerateAiAnalysis -> commit(AestheticMutation.AiAnalysisGenerated(buildAiAnalysis(state.value.measurements)))
+            is AestheticAction.GenerateTodayPlan -> commit(AestheticMutation.TodayPlanGenerated(buildGeneratedTodayPlan(state.value.todayPlanInput())))
             is AestheticAction.SelectFoodGoal -> commit(AestheticMutation.FoodGoalSelected(action.goal))
         }
     }
@@ -138,3 +141,10 @@ class AestheticViewModel(private val repository: AestheticRepository) : ViewMode
         override fun <T : ViewModel> create(modelClass: Class<T>): T = AestheticViewModel(repository) as T
     }
 }
+
+private fun todayTicker() = flow {
+    while (true) {
+        emit(LocalDate.now())
+        delay(60_000)
+    }
+}.distinctUntilChanged()

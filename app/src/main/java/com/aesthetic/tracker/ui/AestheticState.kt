@@ -1,26 +1,28 @@
 package com.aesthetic.tracker.ui
 
+import androidx.annotation.StringRes
+import com.aesthetic.tracker.R
 import com.aesthetic.tracker.data.HabitEntry
 import com.aesthetic.tracker.data.MeasurementEntry
 import com.aesthetic.tracker.data.Recommendation
 import com.aesthetic.tracker.data.ScaleScreenshotImport
-import com.aesthetic.tracker.domain.AiAnalysis
 import com.aesthetic.tracker.domain.FoodGoal
+import com.aesthetic.tracker.domain.GeneratedTodayPlan
 import com.aesthetic.tracker.data.WorkoutPlanDay
 import com.aesthetic.tracker.domain.PlanPosition
 import com.aesthetic.tracker.domain.ProgressSnapshot
+import com.aesthetic.tracker.domain.TodayPlanInput
+import com.aesthetic.tracker.domain.signature
 import java.time.LocalDate
 
-enum class TrackerScreen(val label: String) {
-    Dashboard("Dashboard"),
-    TodayPlan("Today"),
-    Measurements("Measurements"),
-    Recommendations("Coach"),
-    Food("Food"),
+enum class TrackerScreen(@StringRes val labelRes: Int) {
+    GeneralData(R.string.screen_general_data),
+    Today(R.string.screen_today),
+    UploadResults(R.string.screen_upload_results),
 }
 
 data class AestheticState(
-    val selectedScreen: TrackerScreen = TrackerScreen.Dashboard,
+    val selectedScreen: TrackerScreen = TrackerScreen.GeneralData,
     val planStartDate: LocalDate = LocalDate.now(),
     val today: LocalDate = LocalDate.now(),
     val measurements: List<MeasurementEntry> = emptyList(),
@@ -32,7 +34,7 @@ data class AestheticState(
     val progress: ProgressSnapshot = ProgressSnapshot(0.0, 0.0, 0.0, 0, 0.0),
     val recommendations: List<Recommendation> = emptyList(),
     val scaleImports: List<ScaleScreenshotImport> = emptyList(),
-    val aiAnalysis: AiAnalysis? = null,
+    val generatedTodayPlan: GeneratedTodayPlan? = null,
     val selectedFoodGoal: FoodGoal = FoodGoal.HighProtein,
     val isLoading: Boolean = true,
 )
@@ -59,17 +61,17 @@ sealed interface AestheticAction {
     data class ConfirmParsedScaleImport(val scaleImport: ScaleScreenshotImport) : AestheticAction
     data class DeleteScaleImport(val scaleImport: ScaleScreenshotImport) : AestheticAction
     data class DeleteMeasurement(val measurement: MeasurementEntry) : AestheticAction
-    data object GenerateAiAnalysis : AestheticAction
+    data object GenerateTodayPlan : AestheticAction
     data class SelectFoodGoal(val goal: FoodGoal) : AestheticAction
 }
 
-enum class HabitKind(val label: String) {
-    Water("Water"),
-    Steps("Steps"),
-    Protein("Protein"),
-    Workout("Workout"),
-    Posture("Posture"),
-    Sleep("Sleep"),
+enum class HabitKind(@StringRes val labelRes: Int) {
+    Water(R.string.habit_water),
+    Steps(R.string.habit_steps),
+    Protein(R.string.habit_protein),
+    Workout(R.string.habit_workout),
+    Posture(R.string.habit_posture),
+    Sleep(R.string.habit_sleep),
 }
 
 sealed interface AestheticMutation {
@@ -81,14 +83,14 @@ sealed interface AestheticMutation {
         val scaleImports: List<ScaleScreenshotImport>,
         val today: LocalDate,
     ) : AestheticMutation
-    data class AiAnalysisGenerated(val analysis: AiAnalysis) : AestheticMutation
+    data class TodayPlanGenerated(val plan: GeneratedTodayPlan) : AestheticMutation
     data class FoodGoalSelected(val goal: FoodGoal) : AestheticMutation
 }
 
 fun reduce(state: AestheticState, mutation: AestheticMutation): AestheticState = when (mutation) {
     is AestheticMutation.ScreenSelected -> state.copy(selectedScreen = mutation.screen)
-    is AestheticMutation.AiAnalysisGenerated -> state.copy(aiAnalysis = mutation.analysis)
-    is AestheticMutation.FoodGoalSelected -> state.copy(selectedFoodGoal = mutation.goal)
+    is AestheticMutation.TodayPlanGenerated -> state.copy(generatedTodayPlan = mutation.plan)
+    is AestheticMutation.FoodGoalSelected -> state.copy(selectedFoodGoal = mutation.goal).invalidateStaleTodayPlan()
     is AestheticMutation.DataLoaded -> {
         val todayHabit = mutation.habits.firstOrNull { it.date == mutation.today }
             ?: HabitEntry(mutation.today, false, false, false, false, false, false)
@@ -109,6 +111,20 @@ fun reduce(state: AestheticState, mutation: AestheticMutation): AestheticState =
             progress = com.aesthetic.tracker.domain.progressFor(latest, planStart),
             recommendations = com.aesthetic.tracker.domain.buildRecommendations(mutation.measurements, planStart),
             isLoading = false,
-        )
+        ).invalidateStaleTodayPlan()
     }
+}
+
+fun AestheticState.todayPlanInput(): TodayPlanInput = TodayPlanInput(
+    today = today,
+    measurementsDescending = measurements,
+    currentPlanDay = currentPlanDay,
+    planPosition = planPosition,
+    currentHabit = currentHabit,
+    selectedFoodGoal = selectedFoodGoal,
+)
+
+private fun AestheticState.invalidateStaleTodayPlan(): AestheticState {
+    val plan = generatedTodayPlan ?: return this
+    return if (plan.signature == todayPlanInput().signature()) this else copy(generatedTodayPlan = null)
 }

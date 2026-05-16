@@ -1,0 +1,126 @@
+<resources>
+    <string name="app_name">Aesthetic Tracker</string>
+
+    <string name="screen_general_data">General data</string>
+    <string name="screen_dashboard">Dashboard</string>
+    <string name="screen_today">Today</string>
+    <string name="screen_upload_results">Upload &amp; Results</string>
+    <string name="screen_measurements">Measurements</string>
+    <string name="screen_coach">Coach</string>
+    <string name="screen_food">Food</string>
+
+    <string name="habit_water">Water</string>
+    <string name="habit_steps">Steps</string>
+    <string name="habit_protein">Protein</string>
+    <string name="habit_workout">Workout</string>
+    <string name="habit_posture">Posture</string>
+    <string name="habit_sleep">Sleep</string>
+
+    <string name="food_goal_breakfast">Breakfast</string>
+    <string name="food_goal_lunch">Lunch</string>
+    <string name="food_goal_dinner">Dinner</string>
+    <string name="food_goal_high_protein">High protein</string>
+    <string name="food_goal_low_salt">Low salt</string>
+    <string name="food_goal_post_workout">Post workout</string>
+
+    <string name="week_day_title">Week %1$d, Day %2$d</string>
+    <string name="plan_progress_subtitle">12-week recomposition plan - %1$s%% complete</string>
+    <string name="progress_from_baseline">Progress from baseline</string>
+    <string name="metric_weight">Weight</string>
+    <string name="metric_body_fat">Body fat</string>
+    <string name="metric_muscle">Muscle</string>
+    <string name="metric_pulse">Pulse</string>
+    <string name="target_range">Target range</string>
+    <string name="target_weight">Weight: %1$s-%2$s kg</string>
+    <string name="target_body_fat">Body fat: %1$s-%2$s%%</string>
+    <string name="target_skeletal_muscle">Skeletal muscle: +%1$s-%2$s kg</string>
+    <string name="target_pulse">Pulse: lower resting trend from %1$d bpm</string>
+    <string name="todays_habits">Today\'s habits</string>
+    <string name="latest_measurement">Latest measurement</string>
+    <string name="empty_measurements">No measurements yet. Add today\'s check-in to begin tracking trends.</string>
+
+    <string name="todays_plan">Today\'s plan</string>
+    <string name="week_day_short">Week %1$d - Day %2$d</string>
+    <string name="fallback_focus">Build consistency</string>
+    <string name="workout">Workout</string>
+    <string name="food_goal">Food goal</string>
+    <string name="generate_today_plan">Generate today\'s GPT plan</string>
+    <string name="refresh_today_plan">Refresh today\'s plan</string>
+    <string name="nutrition_today">Nutrition today</string>
+    <string name="recovery_today">Recovery today</string>
+    <string name="execution_checkpoints">Execution checkpoints</string>
+    <string name="today_plan_needs_data">Add a measurement or scale upload so the next generated plan can use real trend data.</string>
+    <string name="daily_habit_checklist">Daily habit checklist</string>
+
+    <string name="smart_scale_import">Smart scale screenshot import</string>
+    <string name="upload_results_overview">Upload &amp; results overview</string>
+    <string name="upload_results_subtitle">Import scale data, confirm parsed values, and review the latest results.</string>
+    <string name="result_recommendations">Results overview</string>
+    <string name="smart_scale_privacy">Photos stay local. AI parsing runs only after you tap the parser button, and you confirm values before saving a MeasurementEntry.</string>
+    <string name="upload_scale_screenshot">Upload/select smart scale screenshot</string>
+    <string name="manual_measurement">Manual measurement</string>
+    <string name="field_weight_kg">Weight (kg)</string>
+    <string name="field_body_fat_percent">Body fat (%)</string>
+    <string name="field_skeletal_muscle_kg">Skeletal muscle (kg)</string>
+    <string name="field_resting_pulse">Resting pulse (bpm)</string>
+    <string name="field_visceral_fat">Visceral fat</string>
+    <string name="field_water_percent">Water (%)</string>
+    <string name="save_check_in">Save check-in</string>
+    <string name="history">History</string>
+
+    <string name="coach_recommendations">Coach recommendations</string>
+    <string name="coach_recommendations_subtitle">Generated from pulse, fat loss rate, body-fat trend, and muscle trend</string>
+    <string name="coach_update_hint">Update measurements weekly for more accurate trend advice.</string>
+    <string name="generate_ai_analysis">Generate AI analysis</string>
+    <string name="ai_improved">What improved</string>
+    <string name="ai_worsened">What got worse</string>
+    <string name="ai_change_today">What to change today</string>
+    <string name="ai_risk_flags">Risk flags</string>
+
+    <string name="local_screenshot">Local screenshot</string>
+    <string name="parsed_values">Parsed values for confirmation</string>
+    <string name="parsed_weight">Weight</string>
+    <string name="parsed_body_fat">Body fat</string>
+    <string name="parsed_bmi">BMI</string>
+    <string name="parsed_muscle_mass">Muscle mass</string>
+    <string name="parsed_skeletal_muscle">Skeletal muscle</string>
+    <string name="parsed_water">Water</string>
+    <string name="parsed_protein">Protein</string>
+    <string name="parsed_visceral_fat">Visceral fat</string>
+    <string name="parsed_bmr">BMR</string>
+    <string name="parsed_bio_age">Bio age</string>
+    <string name="parsed_pulse">Pulse</string>
+    <string name="parsed_chip">%1$s: %2$s</string>
+    <string name="parsed_unknown">?</string>
+    <string name="confirm_parsed_entry">Confirm and save MeasurementEntry</string>
+    <string name="send_to_ai_parser">Send image to AI parser</string>
+    <string name="delete_local_photo">Delete local photo</string>
+
+    <string name="food_recommendations">Food recommendations</string>
+    <string name="food_recommendations_subtitle">Delivery-friendly meals for today\'s goal</string>
+    <string name="food_mvp_hint">MVP uses Yandex Food search links only; no API integration yet.</string>
+    <string name="selected_goal_prefix">Selected: %1$s</string>
+    <string name="calories">Calories: %1$s</string>
+    <string name="protein">Protein: %1$s</string>
+    <string name="why_it_fits">Why it fits: %1$s</string>
+    <string name="avoid">Avoid: %1$s</string>
+    <string name="open_yandex_food">Open in Yandex Food</string>
+
+    <string name="habit_complete_count">%1$d/%2$d complete</string>
+    <string name="habit_summary">Water - Steps - Protein - Workout - Posture - Sleep</string>
+    <string name="fat_chip">Fat %1$s%%</string>
+    <string name="muscle_chip">Muscle %1$s kg</string>
+    <string name="pulse_chip">Pulse %1$d</string>
+    <string name="visceral_chip">Visceral %1$d</string>
+    <string name="water_chip">Water %1$s%%</string>
+    <string name="bmi_chip">BMI %1$s</string>
+    <string name="muscle_mass_chip">Muscle mass %1$s kg</string>
+    <string name="protein_chip">Protein %1$s%%</string>
+    <string name="bmr_chip">BMR %1$d kcal</string>
+    <string name="bio_age_chip">Bio age %1$d</string>
+    <string name="photo_stored_locally">Photo stored locally: %1$s</string>
+    <string name="delete_parsed_entry">Delete parsed entry</string>
+    <string name="priority_high">High</string>
+    <string name="priority_medium">Medium</string>
+    <string name="priority_low">Low</string>
+</resources>
