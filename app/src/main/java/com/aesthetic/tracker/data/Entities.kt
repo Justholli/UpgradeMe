@@ -7,30 +7,17 @@ import java.time.LocalDate
 @Entity(tableName = "measurement_entries")
 data class MeasurementEntry(
     @PrimaryKey val date: LocalDate,
-    val bodyScore: Int? = null,
     val weightKg: Double,
     val bodyFatPercent: Double,
-    val fatMassKg: Double? = null,
     val skeletalMuscleKg: Double,
-    val muscleMassKg: Double? = null,
-    val muscleRatePercent: Double? = null,
     val pulse: Int,
     val visceralFat: Int,
     val waterPercent: Double,
-    val bodyWaterKg: Double? = null,
     val bmi: Double? = null,
-    val mineralMassKg: Double? = null,
-    val proteinMassKg: Double? = null,
+    val muscleMassKg: Double? = null,
     val proteinPercent: Double? = null,
-    val subcutaneousFatPercent: Double? = null,
-    val leanBodyMassKg: Double? = null,
     val basalMetabolismKcal: Int? = null,
     val biologicalAge: Int? = null,
-    val bodyType: String? = null,
-    val standardWeightKg: Double? = null,
-    val weightControlKg: Double? = null,
-    val fatControlKg: Double? = null,
-    val muscleControlKg: Double? = null,
     val scalePhotoPath: String? = null,
 )
 
@@ -62,6 +49,7 @@ data class HabitEntry(
     val workoutDone: Boolean,
     val postureDone: Boolean,
     val sleepDone: Boolean,
+    val checkInDone: Boolean = false,
 )
 
 @Entity(tableName = "workout_plan_days", primaryKeys = ["week", "day"])
@@ -71,6 +59,107 @@ data class WorkoutPlanDay(
     val title: String,
     val exercises: List<String>,
     val focus: String,
+)
+
+@Entity(tableName = "imported_schedule_days")
+data class ImportedScheduleDay(
+    @PrimaryKey val date: LocalDate,
+    val weekStartDate: LocalDate?,
+    val focus: String?,
+    val deliveryAddress: String?,
+    val foodProviderName: String?,
+    val foodProviderCity: String?,
+    val foodProviderCityUrl: String?,
+    val foodProviderNote: String?,
+    val nutrition: List<String>,
+    val recovery: List<String>,
+    val checkpoints: List<String>,
+)
+
+@Entity(tableName = "imported_schedule_events")
+data class ImportedScheduleEvent(
+    @PrimaryKey val id: String,
+    val date: LocalDate,
+    val time: String,
+    val title: String,
+    val description: String?,
+    val kind: String,
+    val isFixed: Boolean,
+    val notificationText: String?,
+)
+
+@Entity(tableName = "schedule_event_completions")
+data class ScheduleEventCompletion(
+    @PrimaryKey val eventId: String,
+    val date: LocalDate,
+)
+
+@Entity(tableName = "schedule_event_starts")
+data class ScheduleEventStart(
+    @PrimaryKey val eventId: String,
+    val date: LocalDate,
+)
+
+@Entity(tableName = "imported_meal_recommendations")
+data class ImportedMealRecommendation(
+    @PrimaryKey val id: String,
+    val date: LocalDate,
+    val time: String,
+    val type: String,
+    val title: String,
+    val restaurant: String?,
+    val sourceDescription: String?,
+    val description: String?,
+    val estimatedCalories: Int?,
+    val estimatedProteinG: Int?,
+    val estimatedFatG: Int?,
+    val estimatedCarbsG: Int?,
+    val weightG: Int?,
+    val priceRub: Int?,
+    val foodUrl: String?,
+    val source: String?,
+    val fallback: String?,
+)
+
+@Entity(tableName = "imported_goals")
+data class ImportedGoal(
+    @PrimaryKey val id: String,
+    val title: String,
+    val visualReference: String?,
+    val targetWeightKg: Double?,
+    val targetBodyFatPercentRange: String?,
+    val trainingPrinciples: List<String>,
+    val focusMuscles: List<String>,
+    val nutritionPrinciples: List<String>,
+)
+
+@Entity(tableName = "imported_workout_exercises")
+data class ImportedWorkoutExercise(
+    @PrimaryKey val id: String,
+    val date: LocalDate,
+    val eventId: String?,
+    val workoutId: String?,
+    val workoutTitle: String?,
+    val workoutDescription: String?,
+    val workoutEstimatedDurationMin: Int?,
+    val workoutIntensity: String?,
+    val exerciseId: String,
+    val orderIndex: Int,
+    val title: String,
+    val description: String?,
+    val sets: Int?,
+    val reps: String?,
+    val durationSec: Int?,
+    val restSec: Int?,
+    val rpe: String?,
+    val equipment: String?,
+    val target: List<String>,
+    val previewImageUrl: String?,
+    val imageUrls: List<String>,
+    val imageAlt: String?,
+    val sourceUrl: String?,
+    val techniqueSteps: List<String>,
+    val commonMistakes: List<String>,
 )
 
 data class Recommendation(

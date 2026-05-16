@@ -5,7 +5,6 @@ import com.aesthetic.tracker.data.MeasurementEntry
 import com.aesthetic.tracker.data.ScaleScreenshotImport
 import com.aesthetic.tracker.data.WorkoutPlanDay
 import java.time.LocalDate
-import java.time.LocalTime
 
 object AiScaleParser {
     fun parse(import: ScaleScreenshotImport, latest: MeasurementEntry?): ScaleScreenshotImport {
@@ -57,30 +56,11 @@ data class TodayPlanSignature(
 data class GeneratedTodayPlan(
     val signature: TodayPlanSignature,
     val focus: String,
-    val schedule: List<TodayScheduleItem>,
-    val training: List<TodayTrainingItem>,
+    val training: List<String>,
     val nutrition: List<String>,
     val recovery: List<String>,
     val checkpoints: List<String>,
-    val prompt: String,
 )
-
-data class TodayTrainingItem(
-    val title: String,
-    val description: String,
-)
-
-data class TodayScheduleItem(
-    val id: String,
-    val time: LocalTime,
-    val title: String,
-    val description: String,
-    val kind: TodayScheduleKind,
-    val isFixed: Boolean,
-    val notificationText: String,
-)
-
-enum class TodayScheduleKind { Sleep, Meal, Workout, Recovery, CheckIn, Habit }
 
 fun TodayPlanInput.signature(): TodayPlanSignature {
     val latest = measurementsDescending.firstOrNull()
@@ -116,61 +96,84 @@ fun TodayPlanInput.signature(): TodayPlanSignature {
     )
 }
 
-fun buildTodayPlanPrompt(input: TodayPlanInput): String {
-    val latest = input.measurementsDescending.firstOrNull()
-    val previous = input.measurementsDescending.drop(1).firstOrNull()
-    val latestBlock = latest?.let {
-        "latest=${it.date}: weight=${it.weightKg.format(1)}kg, fat=${it.bodyFatPercent.format(1)}%, muscle=${it.skeletalMuscleKg.format(1)}kg, pulse=${it.pulse}, water=${it.waterPercent.format(1)}%"
-    } ?: "latest=missing"
-    val previousBlock = previous?.let {
-        "previous=${it.date}: weight=${it.weightKg.format(1)}kg, fat=${it.bodyFatPercent.format(1)}%, muscle=${it.skeletalMuscleKg.format(1)}kg, pulse=${it.pulse}, water=${it.waterPercent.format(1)}%"
-    } ?: "previous=missing"
-    val workoutBlock = input.currentPlanDay?.let {
-        "workout=week ${it.week}, day ${it.day}, title=${it.title}, focus=${it.focus}, exercises=${it.exercises.joinToString("; ")}"
-    } ?: "workout=missing"
-
-    return """
-        Generate a 7-day recomposition schedule from the provided plan and body data as JSON.
-        Start with today=${input.today}; include 7 consecutive calendar dates in days[].
-        If a scale screenshot is provided, also return optional measurement data in measurement{} using numeric values where visible.
-        Keep these anchors unchanged every day: sleep 02:00-10:00, breakfast 12:00, lunch 15:00, dinner 20:00.
-        Choose workout timing for each day based on plan day, pulse, recovery risk, and meal anchors.
-        Write training[] as objects with title and description. title is the exercise/block name; description includes sets x reps or duration, rest, RPE/intensity, and one technique note.
-        Use concise Russian output with timeline items, notification text, and execution checkpoints.
-        Schedule kind values must be one of: Sleep, Meal, Workout, Recovery, CheckIn, Habit.
-        Data: today=${input.today}, week=${input.planPosition.week}, day=${input.planPosition.day}, foodGoal=${input.selectedFoodGoal}.
-        Habit status: water=${input.currentHabit.waterDone}, steps=${input.currentHabit.stepsDone}, protein=${input.currentHabit.proteinDone}, workout=${input.currentHabit.workoutDone}, posture=${input.currentHabit.postureDone}, sleep=${input.currentHabit.sleepDone}.
-        Targets: weight=${PlanTargets.TargetMinWeightKg}-${PlanTargets.TargetMaxWeightKg}kg, fat=${PlanTargets.TargetMinBodyFatPercent}-${PlanTargets.TargetMaxBodyFatPercent}%, muscleGain=${PlanTargets.TargetMuscleGainMinKg}-${PlanTargets.TargetMuscleGainMaxKg}kg.
-        Measurement keys: date, bodyScore, weightKg, bodyFatPercent, fatMassKg, skeletalMuscleKg, muscleMassKg, muscleRatePercent, pulse, visceralFat, waterPercent, bodyWaterKg, bmi, mineralMassKg, proteinMassKg, proteinPercent, subcutaneousFatPercent, leanBodyMassKg, basalMetabolismKcal, biologicalAge, bodyType, standardWeightKg, weightControlKg, fatControlKg, muscleControlKg.
-        $latestBlock
-        $previousBlock
-        $workoutBlock
-    """.trimIndent()
-}
-
 private fun MeasurementEntry.fingerprint(): String = listOf(
-    bodyScore?.toString().orEmpty(),
     weightKg.format(1),
     bodyFatPercent.format(1),
-    fatMassKg?.format(1).orEmpty(),
     skeletalMuscleKg.format(1),
-    muscleMassKg?.format(1).orEmpty(),
-    muscleRatePercent?.format(1).orEmpty(),
     pulse.toString(),
     visceralFat.toString(),
     waterPercent.format(1),
-    bodyWaterKg?.format(1).orEmpty(),
-    bmi?.format(1).orEmpty(),
-    mineralMassKg?.format(1).orEmpty(),
-    proteinMassKg?.format(1).orEmpty(),
-    proteinPercent?.format(1).orEmpty(),
-    subcutaneousFatPercent?.format(1).orEmpty(),
-    leanBodyMassKg?.format(1).orEmpty(),
-    basalMetabolismKcal?.toString().orEmpty(),
-    biologicalAge?.toString().orEmpty(),
-    bodyType.orEmpty(),
-    standardWeightKg?.format(1).orEmpty(),
-    weightControlKg?.format(1).orEmpty(),
-    fatControlKg?.format(1).orEmpty(),
-    muscleControlKg?.format(1).orEmpty(),
 ).joinToString(":")
+
+fun buildGeneratedTodayPlan(input: TodayPlanInput): GeneratedTodayPlan {
+    val latest = input.measurementsDescending.firstOrNull()
+    val previous = input.measurementsDescending.drop(1).firstOrNull()
+    val dishes = FoodRecommendations.filter { input.selectedFoodGoal in it.goals }.ifEmpty {
+        FoodRecommendations.filter { FoodGoal.HighProtein in it.goals }
+    }
+    val hasHighPulse = latest?.pulse?.let { it >= 90 } == true
+    val waterIsLow = latest?.waterPercent?.let { it < 50.0 } == true
+    val muscleDropped = latest != null && previous != null && latest.skeletalMuscleKg < previous.skeletalMuscleKg
+
+    val focus = when {
+        latest == null -> "Собрать точку отсчета и выполнить базовый день без перегруза"
+        hasHighPulse -> "Снизить нагрузку сегодня и сохранить движение без лишнего стресса"
+        muscleDropped -> "Защитить мышцы: белок, техника и умеренная прогрессия"
+        else -> input.currentPlanDay?.focus ?: "Выполнить план дня и закрыть ключевые привычки"
+    }
+
+    val training = buildList {
+        val planDay = input.currentPlanDay
+        if (planDay == null) {
+            add("Сделайте 35-45 минут ходьбы в комфортном темпе и 10 минут мобилити.")
+        } else if (hasHighPulse) {
+            add("Оставьте тренировку ${planDay.title} в легком режиме: RPE 6/10, без отказных подходов.")
+            add("Выберите 3 главных упражнения: ${planDay.exercises.take(3).joinToString(", ")}.")
+            add("Завершите 20-30 минутами ходьбы в зоне 2 вместо интервалов.")
+        } else {
+            add("Выполните ${planDay.title}: ${planDay.exercises.take(4).joinToString(", ")}.")
+            add("В одном базовом упражнении добавьте 1 повтор или небольшой вес, если техника стабильна.")
+            add("Оставьте 2 повтора в запасе и не превращайте день в тест максимума.")
+        }
+        if (latest == null) add("Перед тренировкой добавьте замер или загрузку весов, чтобы следующий план был точнее.")
+    }
+
+    val nutrition = buildList {
+        val proteinTarget = latest?.let { "${(it.weightKg * 1.8).format(0)}-${(it.weightKg * 2.1).format(0)} г белка" }
+            ?: "120-145 г белка"
+        add("Цель питания сегодня: $proteinTarget, 2-3 приема с явным белковым блюдом.")
+        dishes.take(2).forEach { dish ->
+            add("${dish.dish}: ${dish.caloriesEstimate}, ${dish.proteinEstimate}. Избегать: ${dish.avoid}")
+        }
+        if (waterIsLow) {
+            add("Добавьте 500-700 мл воды в первой половине дня и выбирайте менее соленую доставку.")
+        } else {
+            add("Сладкие напитки, майонезные соусы и жареные гарниры сегодня не помогают цели.")
+        }
+    }
+
+    val recovery = buildList {
+        if (hasHighPulse) add("Поставьте сон выше дополнительного кардио: цель 7,5-9 часов.")
+        if (waterIsLow) add("Отследите воду и соль: низкий процент воды может маскировать прогресс.")
+        if (muscleDropped) add("После тренировки добавьте белковый прием пищи и не урезайте калории агрессивно.")
+        if (isEmpty()) add("10 минут мобилити вечером и спокойная прогулка помогут восстановлению.")
+    }
+
+    val checkpoints = buildList {
+        if (!input.currentHabit.waterDone) add("Вода")
+        if (!input.currentHabit.stepsDone) add("Шаги")
+        if (!input.currentHabit.proteinDone) add("Белок")
+        if (!input.currentHabit.workoutDone) add("Тренировка")
+        if (!input.currentHabit.postureDone) add("Осанка")
+        if (!input.currentHabit.sleepDone) add("Сон")
+    }.ifEmpty { listOf("Все привычки на сегодня закрыты") }
+
+    return GeneratedTodayPlan(
+        signature = input.signature(),
+        focus = focus,
+        training = training,
+        nutrition = nutrition,
+        recovery = recovery,
+        checkpoints = checkpoints,
+    )
+}

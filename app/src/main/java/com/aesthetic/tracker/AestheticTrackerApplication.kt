@@ -1,7 +1,16 @@
 package com.aesthetic.tracker
 
 import android.app.Application
-import dagger.hilt.android.HiltAndroidApp
+import com.aesthetic.tracker.data.AestheticRepository
+import com.aesthetic.tracker.data.AppDatabase
+import com.aesthetic.tracker.notification.AlarmEventReminderPlanner
+import com.aesthetic.tracker.notification.EventReminderPlanner
 
-@HiltAndroidApp
-class AestheticTrackerApplication : Application()
+class AestheticTrackerApplication : Application() {
+    val repository: AestheticRepository by lazy {
+        AestheticRepository(AppDatabase.create(this).aestheticDao())
+    }
+    val eventReminderPlanner: EventReminderPlanner by lazy {
+        AlarmEventReminderPlanner(this, repository)
+    }
+}

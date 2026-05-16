@@ -5,23 +5,22 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.aesthetic.tracker.notification.EventProgressNotificationHelper
+import com.aesthetic.tracker.ui.AestheticAction
 import com.aesthetic.tracker.ui.AestheticApp
 import com.aesthetic.tracker.ui.AestheticViewModel
 import com.aesthetic.tracker.ui.theme.AestheticTrackerTheme
-import dagger.hilt.android.AndroidEntryPoint
 
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private val viewModel: AestheticViewModel by viewModels()
-
-    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) viewModel.scheduleNotificationsForCurrentPlan()
+    private val viewModel: AestheticViewModel by viewModels {
+        val app = application as AestheticTrackerApplication
+        AestheticViewModel.Factory(app.repository, app.eventReminderPlanner)
     }
+    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,16 +28,27 @@ class MainActivity : ComponentActivity() {
         setContent {
             AestheticTrackerTheme {
                 val state = viewModel.state.collectAsStateWithLifecycle().value
-                AestheticApp(state = state, onAction = viewModel::dispatch)
+                AestheticApp(
+                    state = state,
+                    onAction = { action ->
+                        if (action is AestheticAction.StartEventProgressNotification) {
+                            EventProgressNotificationHelper.show(
+                                context = this,
+                                eventId = action.eventId,
+                                title = action.title,
+                                progressPercent = action.progressPercent,
+                            )
+                        }
+                        viewModel.dispatch(action)
+                    },
+                )
             }
         }
     }
 
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        if (!granted) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }
