@@ -29,21 +29,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MonitorHeart
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.SelfImprovement
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -73,7 +67,6 @@ import com.aesthetic.tracker.data.MeasurementEntry
 import com.aesthetic.tracker.data.Recommendation
 import com.aesthetic.tracker.data.RecommendationPriority
 import com.aesthetic.tracker.data.ScaleScreenshotImport
-import com.aesthetic.tracker.domain.FoodGoal
 import com.aesthetic.tracker.domain.PlanTargets
 import com.aesthetic.tracker.domain.format
 import java.io.File
@@ -114,7 +107,7 @@ fun AestheticApp(state: AestheticState, onAction: (AestheticAction) -> Unit) {
             } else {
                 Crossfade(targetState = state.selectedScreen, label = "screen_transition") { screen ->
                     when (screen) {
-                        TrackerScreen.GeneralData -> DashboardScreen(state)
+                        TrackerScreen.GeneralData -> DashboardScreen(state, onAction)
                         TrackerScreen.Today -> TodayPlanScreen(state, onAction)
                         TrackerScreen.UploadResults -> MeasurementsScreen(state, onAction)
                     }
@@ -125,7 +118,7 @@ fun AestheticApp(state: AestheticState, onAction: (AestheticAction) -> Unit) {
 }
 
 @Composable
-fun DashboardScreen(state: AestheticState) {
+fun DashboardScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
@@ -154,6 +147,10 @@ fun DashboardScreen(state: AestheticState) {
             )
         }
         item {
+            SectionTitle(stringResource(R.string.ai_settings))
+            AiSettingsCard(state, onAction)
+        }
+        item {
             SectionTitle(stringResource(R.string.target_range))
             InfoCard {
                 Text(stringResource(R.string.target_weight, PlanTargets.TargetMinWeightKg.format(0), PlanTargets.TargetMaxWeightKg.format(0)))
@@ -174,70 +171,23 @@ fun DashboardScreen(state: AestheticState) {
 }
 
 @Composable
-fun TodayPlanScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) {
-    val generatedPlan = state.generatedTodayPlan
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            HeaderCard(
-                stringResource(R.string.todays_plan),
-                stringResource(R.string.week_day_short, state.planPosition.week, state.planPosition.day),
-            ) {
-                Text(generatedPlan?.focus ?: state.currentPlanDay?.focus ?: stringResource(R.string.fallback_focus), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Button(onClick = { onAction(AestheticAction.GenerateTodayPlan) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(if (generatedPlan == null) R.string.generate_today_plan else R.string.refresh_today_plan))
-                }
-            }
-        }
-        item {
-            SectionTitle(stringResource(R.string.food_goal))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FoodGoal.entries.forEach { goal ->
-                    val label = stringResource(goal.labelRes)
-                    FilterChip(
-                        selected = state.selectedFoodGoal == goal,
-                        onClick = { onAction(AestheticAction.SelectFoodGoal(goal)) },
-                        label = { Text(label) },
-                    )
-                }
-            }
-        }
-        if (generatedPlan != null) {
-            item { TodayPlanBlockCard(stringResource(R.string.workout), generatedPlan.training) }
-            item { TodayPlanBlockCard(stringResource(R.string.nutrition_today), generatedPlan.nutrition) }
-            item { TodayPlanBlockCard(stringResource(R.string.recovery_today), generatedPlan.recovery) }
-            item { TodayPlanBlockCard(stringResource(R.string.execution_checkpoints), generatedPlan.checkpoints) }
-        } else {
-            item {
-                SectionTitle(state.currentPlanDay?.title ?: stringResource(R.string.workout))
-                InfoCard {
-                    state.currentPlanDay?.exercises.orEmpty().forEachIndexed { index, exercise ->
-                        Text("${index + 1}. $exercise")
-                    }
-                    if (state.measurements.isEmpty()) {
-                        Text(stringResource(R.string.today_plan_needs_data), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
-        item { SectionTitle(stringResource(R.string.daily_habit_checklist)) }
-        items(HabitKind.entries) { habit ->
-            HabitRow(habit, state.currentHabit.isDone(habit)) {
-                onAction(AestheticAction.ToggleHabit(habit))
-            }
-        }
-    }
-}
-
-@Composable
-private fun TodayPlanBlockCard(title: String, lines: List<String>) {
+private fun AiSettingsCard(state: AestheticState, onAction: (AestheticAction) -> Unit) {
+    var chatUrl by remember(state.chatUrl) { mutableStateOf(state.chatUrl) }
     InfoCard {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        lines.forEachIndexed { index, line ->
-            Text("${index + 1}. $line", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.chat_url_description), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedTextField(
+            value = chatUrl,
+            onValueChange = { chatUrl = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.chat_url)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            singleLine = true,
+        )
+        Button(
+            onClick = { onAction(AestheticAction.SaveChatUrl(chatUrl)) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.save_chat_url))
         }
     }
 }
@@ -252,6 +202,24 @@ fun MeasurementsScreen(state: AestheticState, onAction: (AestheticAction) -> Uni
     var pulse by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.pulse?.toString() ?: "102") }
     var visceral by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.visceralFat?.toString() ?: "8") }
     var water by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.waterPercent?.toString() ?: "55.0") }
+    var bodyScore by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.bodyScore?.toString().orEmpty()) }
+    var bmi by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.bmi?.toString().orEmpty()) }
+    var fatMass by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.fatMassKg?.toString().orEmpty()) }
+    var muscleMass by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.muscleMassKg?.toString().orEmpty()) }
+    var muscleRate by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.muscleRatePercent?.toString().orEmpty()) }
+    var bodyWater by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.bodyWaterKg?.toString().orEmpty()) }
+    var mineralMass by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.mineralMassKg?.toString().orEmpty()) }
+    var proteinMass by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.proteinMassKg?.toString().orEmpty()) }
+    var proteinPercent by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.proteinPercent?.toString().orEmpty()) }
+    var subcutaneousFat by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.subcutaneousFatPercent?.toString().orEmpty()) }
+    var leanMass by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.leanBodyMassKg?.toString().orEmpty()) }
+    var bmr by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.basalMetabolismKcal?.toString().orEmpty()) }
+    var biologicalAge by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.biologicalAge?.toString().orEmpty()) }
+    var bodyType by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.bodyType.orEmpty()) }
+    var standardWeight by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.standardWeightKg?.toString().orEmpty()) }
+    var weightControl by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.weightControlKg?.toString().orEmpty()) }
+    var fatControl by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.fatControlKg?.toString().orEmpty()) }
+    var muscleControl by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.muscleControlKg?.toString().orEmpty()) }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             copyScaleScreenshot(context, it)?.let { path ->
@@ -297,17 +265,59 @@ fun MeasurementsScreen(state: AestheticState, onAction: (AestheticAction) -> Uni
                 NumberField(stringResource(R.string.field_resting_pulse), pulse) { pulse = it }
                 NumberField(stringResource(R.string.field_visceral_fat), visceral) { visceral = it }
                 NumberField(stringResource(R.string.field_water_percent), water) { water = it }
+                NumberField(stringResource(R.string.field_body_score_optional), bodyScore) { bodyScore = it }
+                NumberField(stringResource(R.string.field_bmi_optional), bmi) { bmi = it }
+                NumberField(stringResource(R.string.field_fat_mass_kg_optional), fatMass) { fatMass = it }
+                NumberField(stringResource(R.string.field_muscle_mass_kg_optional), muscleMass) { muscleMass = it }
+                NumberField(stringResource(R.string.field_muscle_rate_percent_optional), muscleRate) { muscleRate = it }
+                NumberField(stringResource(R.string.field_body_water_kg_optional), bodyWater) { bodyWater = it }
+                NumberField(stringResource(R.string.field_mineral_mass_kg_optional), mineralMass) { mineralMass = it }
+                NumberField(stringResource(R.string.field_protein_mass_kg_optional), proteinMass) { proteinMass = it }
+                NumberField(stringResource(R.string.field_protein_percent_optional), proteinPercent) { proteinPercent = it }
+                NumberField(stringResource(R.string.field_subcutaneous_fat_percent_optional), subcutaneousFat) { subcutaneousFat = it }
+                NumberField(stringResource(R.string.field_lean_body_mass_kg_optional), leanMass) { leanMass = it }
+                NumberField(stringResource(R.string.field_bmr_optional), bmr) { bmr = it }
+                NumberField(stringResource(R.string.field_biological_age_optional), biologicalAge) { biologicalAge = it }
+                OutlinedTextField(
+                    value = bodyType,
+                    onValueChange = { bodyType = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.field_body_type_optional)) },
+                    singleLine = true,
+                )
+                NumberField(stringResource(R.string.field_standard_weight_kg_optional), standardWeight) { standardWeight = it }
+                NumberField(stringResource(R.string.field_weight_control_kg_optional), weightControl) { weightControl = it }
+                NumberField(stringResource(R.string.field_fat_control_kg_optional), fatControl) { fatControl = it }
+                NumberField(stringResource(R.string.field_muscle_control_kg_optional), muscleControl) { muscleControl = it }
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         onAction(
                             AestheticAction.SaveMeasurement(
-                                weightKg = weight.toDoubleOrNull() ?: PlanTargets.InitialWeightKg,
-                                bodyFatPercent = bodyFat.toDoubleOrNull() ?: PlanTargets.InitialBodyFatPercent,
-                                skeletalMuscleKg = muscle.toDoubleOrNull() ?: PlanTargets.InitialSkeletalMuscleKg,
-                                pulse = pulse.toIntOrNull() ?: PlanTargets.InitialPulse,
-                                visceralFat = visceral.toIntOrNull() ?: 0,
-                                waterPercent = water.toDoubleOrNull() ?: 0.0,
+                                weightKg = weight.metricDoubleOrNull() ?: PlanTargets.InitialWeightKg,
+                                bodyFatPercent = bodyFat.metricDoubleOrNull() ?: PlanTargets.InitialBodyFatPercent,
+                                skeletalMuscleKg = muscle.metricDoubleOrNull() ?: PlanTargets.InitialSkeletalMuscleKg,
+                                pulse = pulse.metricIntOrNull() ?: PlanTargets.InitialPulse,
+                                visceralFat = visceral.metricIntOrNull() ?: 0,
+                                waterPercent = water.metricDoubleOrNull() ?: 0.0,
+                                bodyScore = bodyScore.metricIntOrNull(),
+                                bmi = bmi.metricDoubleOrNull(),
+                                fatMassKg = fatMass.metricDoubleOrNull(),
+                                muscleMassKg = muscleMass.metricDoubleOrNull(),
+                                muscleRatePercent = muscleRate.metricDoubleOrNull(),
+                                bodyWaterKg = bodyWater.metricDoubleOrNull(),
+                                mineralMassKg = mineralMass.metricDoubleOrNull(),
+                                proteinMassKg = proteinMass.metricDoubleOrNull(),
+                                proteinPercent = proteinPercent.metricDoubleOrNull(),
+                                subcutaneousFatPercent = subcutaneousFat.metricDoubleOrNull(),
+                                leanBodyMassKg = leanMass.metricDoubleOrNull(),
+                                basalMetabolismKcal = bmr.metricIntOrNull(),
+                                biologicalAge = biologicalAge.metricIntOrNull(),
+                                bodyType = bodyType,
+                                standardWeightKg = standardWeight.metricDoubleOrNull(),
+                                weightControlKg = weightControl.metricDoubleOrNull(),
+                                fatControlKg = fatControl.metricDoubleOrNull(),
+                                muscleControlKg = muscleControl.metricDoubleOrNull(),
                             ),
                         )
                     },
@@ -424,29 +434,6 @@ private fun HabitSummary(habit: HabitEntry) {
 }
 
 @Composable
-private fun HabitRow(habit: HabitKind, checked: Boolean, onToggle: () -> Unit) {
-    val label = stringResource(habit.labelRes)
-    Card(
-        onClick = onToggle,
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(habit.icon(), contentDescription = label, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(12.dp))
-            Text(label, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-            Checkbox(checked = checked, onCheckedChange = { onToggle() })
-        }
-    }
-}
-
-@Composable
 private fun MeasurementCard(entry: MeasurementEntry, onAction: ((AestheticAction) -> Unit)? = null) {
     InfoCard {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -455,16 +442,29 @@ private fun MeasurementCard(entry: MeasurementEntry, onAction: ((AestheticAction
         }
         Spacer(Modifier.height(8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            entry.bodyScore?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.body_score_chip, it)) }) }
             AssistChip(onClick = {}, label = { Text(stringResource(R.string.fat_chip, entry.bodyFatPercent.format(1))) })
+            entry.fatMassKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.fat_mass_chip, it.format(1))) }) }
             AssistChip(onClick = {}, label = { Text(stringResource(R.string.muscle_chip, entry.skeletalMuscleKg.format(1))) })
+            entry.muscleMassKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.muscle_mass_chip, it.format(1))) }) }
+            entry.muscleRatePercent?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.muscle_rate_chip, it.format(1))) }) }
             AssistChip(onClick = {}, label = { Text(stringResource(R.string.pulse_chip, entry.pulse)) })
             AssistChip(onClick = {}, label = { Text(stringResource(R.string.visceral_chip, entry.visceralFat)) })
             AssistChip(onClick = {}, label = { Text(stringResource(R.string.water_chip, entry.waterPercent.format(1))) })
+            entry.bodyWaterKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.body_water_kg_chip, it.format(1))) }) }
             entry.bmi?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.bmi_chip, it.format(1))) }) }
-            entry.muscleMassKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.muscle_mass_chip, it.format(1))) }) }
+            entry.mineralMassKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.mineral_mass_chip, it.format(1))) }) }
+            entry.proteinMassKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.protein_mass_chip, it.format(1))) }) }
             entry.proteinPercent?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.protein_chip, it.format(1))) }) }
+            entry.subcutaneousFatPercent?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.subcutaneous_fat_chip, it.format(1))) }) }
+            entry.leanBodyMassKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.lean_body_mass_chip, it.format(1))) }) }
             entry.basalMetabolismKcal?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.bmr_chip, it)) }) }
             entry.biologicalAge?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.bio_age_chip, it)) }) }
+            entry.bodyType?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.body_type_chip, it)) }) }
+            entry.standardWeightKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.standard_weight_chip, it.format(1))) }) }
+            entry.weightControlKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.weight_control_chip, it.format(1))) }) }
+            entry.fatControlKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.fat_control_chip, it.format(1))) }) }
+            entry.muscleControlKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.muscle_control_chip, it.format(1))) }) }
         }
         entry.scalePhotoPath?.let { Text(stringResource(R.string.photo_stored_locally, it), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         onAction?.let {
@@ -522,7 +522,7 @@ private fun NumberField(label: String, value: String, onChange: (String) -> Unit
     )
 }
 
-private fun HabitEntry.isDone(kind: HabitKind): Boolean = when (kind) {
+fun HabitEntry.isDone(kind: HabitKind): Boolean = when (kind) {
     HabitKind.Water -> waterDone
     HabitKind.Steps -> stepsDone
     HabitKind.Protein -> proteinDone
@@ -531,19 +531,18 @@ private fun HabitEntry.isDone(kind: HabitKind): Boolean = when (kind) {
     HabitKind.Sleep -> sleepDone
 }
 
+private fun String.metricDoubleOrNull(): Double? =
+    replace(',', '.')
+        .replace(Regex("[^0-9.+-]"), "")
+        .takeIf { it.isNotBlank() && it != "+" && it != "-" && it != "." }
+        ?.toDoubleOrNull()
+
+private fun String.metricIntOrNull(): Int? = metricDoubleOrNull()?.toInt()
+
 private fun TrackerScreen.icon(): ImageVector = when (this) {
     TrackerScreen.GeneralData -> Icons.Default.Insights
     TrackerScreen.Today -> Icons.Default.FitnessCenter
     TrackerScreen.UploadResults -> Icons.Default.MonitorHeart
-}
-
-private fun HabitKind.icon(): ImageVector = when (this) {
-    HabitKind.Water -> Icons.Default.WaterDrop
-    HabitKind.Steps -> Icons.AutoMirrored.Filled.DirectionsWalk
-    HabitKind.Protein -> Icons.Default.Restaurant
-    HabitKind.Workout -> Icons.Default.FitnessCenter
-    HabitKind.Posture -> Icons.Default.SelfImprovement
-    HabitKind.Sleep -> Icons.Default.MonitorHeart
 }
 
 @Composable

@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [MeasurementEntry::class, HabitEntry::class, WorkoutPlanDay::class, ScaleScreenshotImport::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -50,9 +50,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val Migration2To3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN bodyScore INTEGER")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN fatMassKg REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN muscleRatePercent REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN bodyWaterKg REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN mineralMassKg REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN proteinMassKg REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN subcutaneousFatPercent REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN leanBodyMassKg REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN bodyType TEXT")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN standardWeightKg REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN weightControlKg REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN fatControlKg REAL")
+                db.execSQL("ALTER TABLE measurement_entries ADD COLUMN muscleControlKg REAL")
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "aesthetic-tracker.db")
-                .addMigrations(Migration1To2)
+                .addMigrations(Migration1To2, Migration2To3)
                 .build()
     }
 }
