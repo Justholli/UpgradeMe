@@ -3,8 +3,15 @@ package com.aesthetic.tracker.ui
 import androidx.annotation.StringRes
 import com.aesthetic.tracker.R
 import com.aesthetic.tracker.data.HabitEntry
+import com.aesthetic.tracker.data.ImportedGoal
+import com.aesthetic.tracker.data.ImportedMealRecommendation
+import com.aesthetic.tracker.data.ImportedScheduleDay
+import com.aesthetic.tracker.data.ImportedScheduleEvent
+import com.aesthetic.tracker.data.ImportedWorkoutExercise
 import com.aesthetic.tracker.data.MeasurementEntry
 import com.aesthetic.tracker.data.Recommendation
+import com.aesthetic.tracker.data.ScheduleEventCompletion
+import com.aesthetic.tracker.data.ScheduleEventStart
 import com.aesthetic.tracker.data.ScaleScreenshotImport
 import com.aesthetic.tracker.domain.FoodGoal
 import com.aesthetic.tracker.domain.GeneratedTodayPlan
@@ -13,21 +20,31 @@ import com.aesthetic.tracker.domain.PlanPosition
 import com.aesthetic.tracker.domain.ProgressSnapshot
 import com.aesthetic.tracker.domain.TodayPlanInput
 import com.aesthetic.tracker.domain.signature
+import com.aesthetic.tracker.ui.dashboard.DashboardUiMapper
+import com.aesthetic.tracker.ui.dashboard.DashboardUiState
+import com.aesthetic.tracker.ui.dashboard.ImportUiState
 import java.time.LocalDate
 
 enum class TrackerScreen(@StringRes val labelRes: Int) {
-    GeneralData(R.string.screen_general_data),
     Today(R.string.screen_today),
-    UploadResults(R.string.screen_upload_results),
+    Calendar(R.string.screen_calendar),
+    Progress(R.string.screen_progress),
 }
 
 data class AestheticState(
-    val selectedScreen: TrackerScreen = TrackerScreen.GeneralData,
+    val selectedScreen: TrackerScreen = TrackerScreen.Today,
     val planStartDate: LocalDate = LocalDate.now(),
     val today: LocalDate = LocalDate.now(),
     val measurements: List<MeasurementEntry> = emptyList(),
     val habits: List<HabitEntry> = emptyList(),
     val workoutPlan: List<WorkoutPlanDay> = emptyList(),
+    val importedScheduleDays: List<ImportedScheduleDay> = emptyList(),
+    val importedScheduleEvents: List<ImportedScheduleEvent> = emptyList(),
+    val scheduleEventCompletions: List<ScheduleEventCompletion> = emptyList(),
+    val scheduleEventStarts: List<ScheduleEventStart> = emptyList(),
+    val importedMealRecommendations: List<ImportedMealRecommendation> = emptyList(),
+    val importedWorkoutExercises: List<ImportedWorkoutExercise> = emptyList(),
+    val importedGoal: ImportedGoal? = null,
     val currentHabit: HabitEntry = HabitEntry(LocalDate.now(), false, false, false, false, false, false),
     val currentPlanDay: WorkoutPlanDay? = null,
     val planPosition: PlanPosition = PlanPosition(1, 1, 0f),
@@ -36,12 +53,15 @@ data class AestheticState(
     val scaleImports: List<ScaleScreenshotImport> = emptyList(),
     val generatedTodayPlan: GeneratedTodayPlan? = null,
     val selectedFoodGoal: FoodGoal = FoodGoal.HighProtein,
+    val dashboard: DashboardUiState = DashboardUiState.empty(),
+    val importUiState: ImportUiState = ImportUiState.Idle,
     val isLoading: Boolean = true,
 )
 
 sealed interface AestheticAction {
     data class SelectScreen(val screen: TrackerScreen) : AestheticAction
     data class ToggleHabit(val habit: HabitKind) : AestheticAction
+    data class ToggleScheduleEventCompletion(val eventId: String) : AestheticAction
     data class SaveMeasurement(
         val weightKg: Double,
         val bodyFatPercent: Double,
@@ -63,15 +83,20 @@ sealed interface AestheticAction {
     data class DeleteMeasurement(val measurement: MeasurementEntry) : AestheticAction
     data object GenerateTodayPlan : AestheticAction
     data class SelectFoodGoal(val goal: FoodGoal) : AestheticAction
+    data class SubmitJsonImport(val json: String) : AestheticAction
+    data class StartEventProgressNotification(val eventId: String, val title: String, val progressPercent: Int) : AestheticAction
+    data object DismissImportStatus : AestheticAction
+    data object ClearImportedSchedule : AestheticAction
 }
 
-enum class HabitKind(@StringRes val labelRes: Int) {
-    Water(R.string.habit_water),
-    Steps(R.string.habit_steps),
-    Protein(R.string.habit_protein),
-    Workout(R.string.habit_workout),
-    Posture(R.string.habit_posture),
-    Sleep(R.string.habit_sleep),
+enum class HabitKind {
+    Water,
+    Steps,
+    Protein,
+    Workout,
+    Posture,
+    Sleep,
+    CheckIn,
 }
 
 sealed interface AestheticMutation {
@@ -81,16 +106,31 @@ sealed interface AestheticMutation {
         val habits: List<HabitEntry>,
         val workoutPlan: List<WorkoutPlanDay>,
         val scaleImports: List<ScaleScreenshotImport>,
+        val importedScheduleDays: List<ImportedScheduleDay>,
+        val importedScheduleEvents: List<ImportedScheduleEvent>,
+        val scheduleEventCompletions: List<ScheduleEventCompletion>,
+        val scheduleEventStarts: List<ScheduleEventStart>,
+        val importedMealRecommendations: List<ImportedMealRecommendation>,
+        val importedWorkoutExercises: List<ImportedWorkoutExercise>,
+        val importedGoal: ImportedGoal?,
         val today: LocalDate,
     ) : AestheticMutation
     data class TodayPlanGenerated(val plan: GeneratedTodayPlan) : AestheticMutation
     data class FoodGoalSelected(val goal: FoodGoal) : AestheticMutation
+    data object ImportStarted : AestheticMutation
+    data class ImportSucceeded(val message: String) : AestheticMutation
+    data class ImportFailed(val message: String) : AestheticMutation
+    data object ImportDismissed : AestheticMutation
 }
 
 fun reduce(state: AestheticState, mutation: AestheticMutation): AestheticState = when (mutation) {
     is AestheticMutation.ScreenSelected -> state.copy(selectedScreen = mutation.screen)
     is AestheticMutation.TodayPlanGenerated -> state.copy(generatedTodayPlan = mutation.plan)
     is AestheticMutation.FoodGoalSelected -> state.copy(selectedFoodGoal = mutation.goal).invalidateStaleTodayPlan()
+    is AestheticMutation.ImportStarted -> state.copy(importUiState = ImportUiState.Loading)
+    is AestheticMutation.ImportSucceeded -> state.copy(importUiState = ImportUiState.Success(mutation.message))
+    is AestheticMutation.ImportFailed -> state.copy(importUiState = ImportUiState.Error(mutation.message))
+    is AestheticMutation.ImportDismissed -> state.copy(importUiState = ImportUiState.Idle)
     is AestheticMutation.DataLoaded -> {
         val todayHabit = mutation.habits.firstOrNull { it.date == mutation.today }
             ?: HabitEntry(mutation.today, false, false, false, false, false, false)
@@ -98,11 +138,18 @@ fun reduce(state: AestheticState, mutation: AestheticMutation): AestheticState =
         val position = com.aesthetic.tracker.domain.currentPlanPosition(planStart, mutation.today)
         val currentPlanDay = mutation.workoutPlan.firstOrNull { it.week == position.week && it.day == position.day }
         val latest = mutation.measurements.firstOrNull()
-        state.copy(
+        val nextState = state.copy(
             today = mutation.today,
             measurements = mutation.measurements,
             habits = mutation.habits,
             workoutPlan = mutation.workoutPlan,
+            importedScheduleDays = mutation.importedScheduleDays,
+            importedScheduleEvents = mutation.importedScheduleEvents,
+            scheduleEventCompletions = mutation.scheduleEventCompletions,
+            scheduleEventStarts = mutation.scheduleEventStarts,
+            importedMealRecommendations = mutation.importedMealRecommendations,
+            importedWorkoutExercises = mutation.importedWorkoutExercises,
+            importedGoal = mutation.importedGoal,
             scaleImports = mutation.scaleImports,
             currentHabit = todayHabit,
             planStartDate = planStart,
@@ -112,6 +159,7 @@ fun reduce(state: AestheticState, mutation: AestheticMutation): AestheticState =
             recommendations = com.aesthetic.tracker.domain.buildRecommendations(mutation.measurements, planStart),
             isLoading = false,
         ).invalidateStaleTodayPlan()
+        nextState.copy(dashboard = DashboardUiMapper.map(nextState))
     }
 }
 

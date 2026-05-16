@@ -2,8 +2,8 @@
     <style name="Theme.AestheticTracker" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">#F7F8F3</item>
-        <item name="android:statusBarColor">#F7F8F3</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#111612</item>
+        <item name="android:statusBarColor">#111612</item>
     </style>
 </resources>
