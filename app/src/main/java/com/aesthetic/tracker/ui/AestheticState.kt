@@ -35,6 +35,9 @@ data class AestheticState(
     val recommendations: List<Recommendation> = emptyList(),
     val scaleImports: List<ScaleScreenshotImport> = emptyList(),
     val generatedTodayPlan: GeneratedTodayPlan? = null,
+    val completedScheduleItemIds: Set<String> = emptySet(),
+    val chatUrl: String = "",
+    val todayPlanError: String? = null,
     val selectedFoodGoal: FoodGoal = FoodGoal.HighProtein,
     val isLoading: Boolean = true,
 )
@@ -49,11 +52,24 @@ sealed interface AestheticAction {
         val pulse: Int,
         val visceralFat: Int,
         val waterPercent: Double,
-        val bmi: Double? = null,
+        val bodyScore: Int? = null,
+        val fatMassKg: Double? = null,
         val muscleMassKg: Double? = null,
+        val muscleRatePercent: Double? = null,
+        val bodyWaterKg: Double? = null,
+        val bmi: Double? = null,
+        val mineralMassKg: Double? = null,
+        val proteinMassKg: Double? = null,
         val proteinPercent: Double? = null,
+        val subcutaneousFatPercent: Double? = null,
+        val leanBodyMassKg: Double? = null,
         val basalMetabolismKcal: Int? = null,
         val biologicalAge: Int? = null,
+        val bodyType: String? = null,
+        val standardWeightKg: Double? = null,
+        val weightControlKg: Double? = null,
+        val fatControlKg: Double? = null,
+        val muscleControlKg: Double? = null,
         val scalePhotoPath: String? = null,
     ) : AestheticAction
     data class SaveScaleImport(val scaleImport: ScaleScreenshotImport) : AestheticAction
@@ -61,7 +77,9 @@ sealed interface AestheticAction {
     data class ConfirmParsedScaleImport(val scaleImport: ScaleScreenshotImport) : AestheticAction
     data class DeleteScaleImport(val scaleImport: ScaleScreenshotImport) : AestheticAction
     data class DeleteMeasurement(val measurement: MeasurementEntry) : AestheticAction
-    data object GenerateTodayPlan : AestheticAction
+    data class ImportTodayPlan(val content: String) : AestheticAction
+    data class ToggleScheduleItem(val itemId: String) : AestheticAction
+    data class SaveChatUrl(val url: String) : AestheticAction
     data class SelectFoodGoal(val goal: FoodGoal) : AestheticAction
 }
 
@@ -81,16 +99,34 @@ sealed interface AestheticMutation {
         val habits: List<HabitEntry>,
         val workoutPlan: List<WorkoutPlanDay>,
         val scaleImports: List<ScaleScreenshotImport>,
+        val chatUrl: String,
         val today: LocalDate,
     ) : AestheticMutation
     data class TodayPlanGenerated(val plan: GeneratedTodayPlan) : AestheticMutation
+    data class TodayPlanGenerationFailed(val message: String) : AestheticMutation
     data class FoodGoalSelected(val goal: FoodGoal) : AestheticMutation
+    data class ScheduleItemToggled(val itemId: String) : AestheticMutation
+    data class ChatUrlSaved(val url: String) : AestheticMutation
 }
 
 fun reduce(state: AestheticState, mutation: AestheticMutation): AestheticState = when (mutation) {
     is AestheticMutation.ScreenSelected -> state.copy(selectedScreen = mutation.screen)
-    is AestheticMutation.TodayPlanGenerated -> state.copy(generatedTodayPlan = mutation.plan)
-    is AestheticMutation.FoodGoalSelected -> state.copy(selectedFoodGoal = mutation.goal).invalidateStaleTodayPlan()
+    is AestheticMutation.TodayPlanGenerated -> state.copy(
+        generatedTodayPlan = mutation.plan,
+        todayPlanError = null,
+    )
+    is AestheticMutation.TodayPlanGenerationFailed -> state.copy(todayPlanError = mutation.message)
+    is AestheticMutation.FoodGoalSelected -> state.copy(selectedFoodGoal = mutation.goal)
+        .invalidateStaleTodayPlan()
+    is AestheticMutation.ScheduleItemToggled -> {
+        val nextIds = if (mutation.itemId in state.completedScheduleItemIds) {
+            state.completedScheduleItemIds - mutation.itemId
+        } else {
+            state.completedScheduleItemIds + mutation.itemId
+        }
+        state.copy(completedScheduleItemIds = nextIds)
+    }
+    is AestheticMutation.ChatUrlSaved -> state.copy(chatUrl = mutation.url)
     is AestheticMutation.DataLoaded -> {
         val todayHabit = mutation.habits.firstOrNull { it.date == mutation.today }
             ?: HabitEntry(mutation.today, false, false, false, false, false, false)
@@ -110,6 +146,8 @@ fun reduce(state: AestheticState, mutation: AestheticMutation): AestheticState =
             planPosition = position,
             progress = com.aesthetic.tracker.domain.progressFor(latest, planStart),
             recommendations = com.aesthetic.tracker.domain.buildRecommendations(mutation.measurements, planStart),
+            completedScheduleItemIds = if (mutation.today == state.today) state.completedScheduleItemIds else emptySet(),
+            chatUrl = mutation.chatUrl,
             isLoading = false,
         ).invalidateStaleTodayPlan()
     }

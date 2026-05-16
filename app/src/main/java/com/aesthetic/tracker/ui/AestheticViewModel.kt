@@ -1,12 +1,18 @@
 package com.aesthetic.tracker.ui
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.aesthetic.tracker.data.AiSettingsStore
 import com.aesthetic.tracker.data.AestheticRepository
+import com.aesthetic.tracker.data.HabitEntry
 import com.aesthetic.tracker.data.MeasurementEntry
+import com.aesthetic.tracker.data.ScaleScreenshotImport
+import com.aesthetic.tracker.data.TodayPlanFileParser
+import com.aesthetic.tracker.data.WorkoutPlanDay
 import com.aesthetic.tracker.domain.AiScaleParser
-import com.aesthetic.tracker.domain.buildGeneratedTodayPlan
+import com.aesthetic.tracker.domain.GeneratedTodayPlan
+import com.aesthetic.tracker.notifications.TodayNotificationScheduler
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,17 +24,31 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
+import javax.inject.Inject
 
-class AestheticViewModel(private val repository: AestheticRepository) : ViewModel() {
+@HiltViewModel
+class AestheticViewModel @Inject constructor(
+    private val repository: AestheticRepository,
+    private val aiSettingsStore: AiSettingsStore,
+    private val todayPlanFileParser: TodayPlanFileParser,
+    private val notificationScheduler: TodayNotificationScheduler,
+) : ViewModel() {
     private val _state = MutableStateFlow(AestheticState())
     val state: StateFlow<AestheticState> = _state.asStateFlow()
+    private var scheduledPlanKey: String? = null
 
     init {
         viewModelScope.launch {
             repository.ensureWorkoutPlan()
-            combine(repository.measurements, repository.habits, repository.workoutPlan, repository.scaleImports, todayTicker()) { measurements, habits, plan, imports, today ->
-                AestheticMutation.DataLoaded(measurements, habits, plan, imports, today)
-            }.collect { mutation -> commit(mutation) }
+            val loadedCore = combine(repository.measurements, repository.habits, repository.workoutPlan, repository.scaleImports, todayTicker()) { measurements, habits, plan, imports, today ->
+                LoadedCore(measurements, habits, plan, imports, today)
+            }
+            combine(loadedCore, aiSettingsStore.chatUrl) { core, chatUrl ->
+                AestheticMutation.DataLoaded(core.measurements, core.habits, core.workoutPlan, core.scaleImports, chatUrl, core.today)
+            }.collect { mutation ->
+                commit(mutation)
+                scheduleNotificationsForCurrentPlan()
+            }
         }
     }
 
@@ -42,13 +62,43 @@ class AestheticViewModel(private val repository: AestheticRepository) : ViewMode
             is AestheticAction.ConfirmParsedScaleImport -> confirmParsedScaleImport(action)
             is AestheticAction.DeleteScaleImport -> deleteScaleImport(action)
             is AestheticAction.DeleteMeasurement -> deleteMeasurement(action)
-            is AestheticAction.GenerateTodayPlan -> commit(AestheticMutation.TodayPlanGenerated(buildGeneratedTodayPlan(state.value.todayPlanInput())))
+            is AestheticAction.ImportTodayPlan -> importTodayPlan(action.content)
+            is AestheticAction.ToggleScheduleItem -> commit(AestheticMutation.ScheduleItemToggled(action.itemId))
+            is AestheticAction.SaveChatUrl -> saveChatUrl(action.url)
             is AestheticAction.SelectFoodGoal -> commit(AestheticMutation.FoodGoalSelected(action.goal))
+        }
+    }
+
+    fun scheduleNotificationsForCurrentPlan() {
+        val plan = state.value.generatedTodayPlan ?: return
+        val planKey = plan.notificationKey(state.value.today)
+        if (scheduledPlanKey == planKey) return
+        if (notificationScheduler.scheduleToday(plan.schedule, state.value.today)) {
+            scheduledPlanKey = planKey
         }
     }
 
     private fun commit(mutation: AestheticMutation) {
         _state.update { previous -> reduce(previous, mutation) }
+    }
+
+    private fun importTodayPlan(content: String) {
+        todayPlanFileParser.parse(content, state.value.todayPlanInput())
+            .onSuccess { imported ->
+                viewModelScope.launch {
+                    imported.measurement?.let { repository.saveMeasurement(it) }
+                    commit(AestheticMutation.TodayPlanGenerated(imported.plan))
+                    scheduleNotificationsForCurrentPlan()
+                }
+            }
+            .onFailure { error ->
+                commit(AestheticMutation.TodayPlanGenerationFailed(error.message ?: "Не удалось импортировать файл расписания."))
+            }
+    }
+
+    private fun saveChatUrl(url: String) {
+        aiSettingsStore.saveChatUrl(url)
+        commit(AestheticMutation.ChatUrlSaved(url.trim()))
     }
 
     private fun toggleHabit(kind: HabitKind) {
@@ -71,23 +121,35 @@ class AestheticViewModel(private val repository: AestheticRepository) : ViewMode
             repository.saveMeasurement(
                 MeasurementEntry(
                     date = LocalDate.now(),
+                    bodyScore = action.bodyScore,
                     weightKg = action.weightKg,
                     bodyFatPercent = action.bodyFatPercent,
+                    fatMassKg = action.fatMassKg,
                     skeletalMuscleKg = action.skeletalMuscleKg,
+                    muscleMassKg = action.muscleMassKg,
+                    muscleRatePercent = action.muscleRatePercent,
                     pulse = action.pulse,
                     visceralFat = action.visceralFat,
                     waterPercent = action.waterPercent,
+                    bodyWaterKg = action.bodyWaterKg,
                     bmi = action.bmi,
-                    muscleMassKg = action.muscleMassKg,
+                    mineralMassKg = action.mineralMassKg,
+                    proteinMassKg = action.proteinMassKg,
                     proteinPercent = action.proteinPercent,
+                    subcutaneousFatPercent = action.subcutaneousFatPercent,
+                    leanBodyMassKg = action.leanBodyMassKg,
                     basalMetabolismKcal = action.basalMetabolismKcal,
                     biologicalAge = action.biologicalAge,
+                    bodyType = action.bodyType?.trim()?.takeIf { it.isNotBlank() },
+                    standardWeightKg = action.standardWeightKg,
+                    weightControlKg = action.weightControlKg,
+                    fatControlKg = action.fatControlKg,
+                    muscleControlKg = action.muscleControlKg,
                     scalePhotoPath = action.scalePhotoPath,
                 ),
             )
         }
     }
-
 
     private fun saveScaleImport(action: AestheticAction.SaveScaleImport) {
         viewModelScope.launch { repository.saveScaleImport(action.scaleImport) }
@@ -135,12 +197,29 @@ class AestheticViewModel(private val repository: AestheticRepository) : ViewMode
             repository.deleteMeasurement(action.measurement)
         }
     }
-
-    class Factory(private val repository: AestheticRepository) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T = AestheticViewModel(repository) as T
-    }
 }
+
+private fun GeneratedTodayPlan.notificationKey(today: LocalDate): String =
+    listOf(
+        signature.toString(),
+        today.toString(),
+        schedule.joinToString("|") { item ->
+            listOf(
+                item.id,
+                item.time,
+                item.title,
+                item.notificationText,
+            ).joinToString(":")
+        },
+    ).joinToString("::")
+
+private data class LoadedCore(
+    val measurements: List<MeasurementEntry>,
+    val habits: List<HabitEntry>,
+    val workoutPlan: List<WorkoutPlanDay>,
+    val scaleImports: List<ScaleScreenshotImport>,
+    val today: LocalDate,
+)
 
 private fun todayTicker() = flow {
     while (true) {
