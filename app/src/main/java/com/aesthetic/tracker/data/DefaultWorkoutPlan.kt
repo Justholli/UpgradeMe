@@ -3,18 +3,18 @@ package com.aesthetic.tracker.data
 object DefaultWorkoutPlan {
     val days: List<WorkoutPlanDay> = (1..12).flatMap { week ->
         val phase = when (week) {
-            in 1..4 -> "Foundation"
-            in 5..8 -> "Progressive overload"
-            else -> "Refinement"
+            in 1..4 -> "База"
+            in 5..8 -> "Прогрессия нагрузки"
+            else -> "Шлифовка"
         }
         listOf(
-            WorkoutPlanDay(week, 1, "$phase Push", listOf("Incline dumbbell press", "Shoulder press", "Cable fly", "Lateral raise", "Triceps pressdown"), "Chest, shoulders, triceps"),
-            WorkoutPlanDay(week, 2, "$phase Pull", listOf("Lat pulldown", "Seated row", "Rear delt fly", "Dumbbell curl", "Face pull"), "Back, rear delts, biceps"),
-            WorkoutPlanDay(week, 3, "Zone 2 + Mobility", listOf("35 min brisk walk", "Hip flexor stretch", "Thoracic rotations", "Deep nasal breathing"), "Recovery and pulse control"),
-            WorkoutPlanDay(week, 4, "$phase Legs", listOf("Goblet squat", "Romanian deadlift", "Leg press", "Hamstring curl", "Calf raise"), "Legs and posterior chain"),
-            WorkoutPlanDay(week, 5, "Upper Aesthetic", listOf("Pull-ups or assisted pull-ups", "Incline press", "Cable row", "Lateral raise mechanical drop set", "Core plank"), "V-taper and posture"),
-            WorkoutPlanDay(week, 6, "Conditioning", listOf("8,000-10,000 steps", "20 min easy bike", "Posture reset", "Light band work"), "Cardio base and movement quality"),
-            WorkoutPlanDay(week, 7, "Rest + Review", listOf("Morning weigh-in", "Progress photos", "Meal prep", "Sleep routine"), "Recovery and consistency"),
+            WorkoutPlanDay(week, 1, "$phase: жим", listOf("Жим гантелей на наклонной", "Жим над головой", "Кроссовер", "Подъемы в стороны", "Разгибание на трицепс"), "Грудь, плечи, трицепс"),
+            WorkoutPlanDay(week, 2, "$phase: тяга", listOf("Тяга верхнего блока", "Горизонтальная тяга", "Разведения на заднюю дельту", "Сгибания с гантелями", "Face pull"), "Спина, задние дельты, бицепс"),
+            WorkoutPlanDay(week, 3, "Зона 2 и мобилити", listOf("35 минут быстрой ходьбы", "Растяжка сгибателей бедра", "Грудные ротации", "Глубокое носовое дыхание"), "Восстановление и контроль пульса"),
+            WorkoutPlanDay(week, 4, "$phase: ноги", listOf("Гоблет-присед", "Румынская тяга", "Жим ногами", "Сгибание ног", "Подъемы на икры"), "Ноги и задняя цепь"),
+            WorkoutPlanDay(week, 5, "Эстетика верха", listOf("Подтягивания или гравитрон", "Наклонный жим", "Тяга в кроссовере", "Механический дроп-сет подъемов в стороны", "Планка"), "V-силуэт и осанка"),
+            WorkoutPlanDay(week, 6, "Кондиция", listOf("8000-10000 шагов", "20 минут легкого вело", "Сброс осанки", "Легкая работа с резинкой"), "Кардиобаза и качество движения"),
+            WorkoutPlanDay(week, 7, "Отдых и ревью", listOf("Утреннее взвешивание", "Фото прогресса", "Подготовка еды", "Рутина сна"), "Восстановление и регулярность"),
         )
     }
 }

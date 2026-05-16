@@ -61,40 +61,40 @@ fun buildRecommendations(measurementsDescending: List<MeasurementEntry>, planSta
 
     if (latest != null && latest.pulse > 90) {
         recommendations += Recommendation(
-            title = "Bring resting pulse down",
-            description = "Prioritize 7.5-9 hours of sleep, daily walking, nasal breathing, and reduce training intensity until pulse trends below 90 bpm.",
+            title = "Снизьте пульс покоя",
+            description = "Сделайте приоритетом 7,5-9 часов сна, ежедневную ходьбу, носовое дыхание и снизьте интенсивность тренировок, пока пульс не уйдет ниже 90 уд/мин.",
             priority = RecommendationPriority.High,
         )
     }
 
     if (progress.averageWeeklyWeightChangeKg < -0.7) {
         recommendations += Recommendation(
-            title = "Slow the cut slightly",
-            description = "Average loss is ${abs(progress.averageWeeklyWeightChangeKg).format(1)} kg/week. Add 150-250 kcal/day or reduce cardio to protect muscle.",
+            title = "Слегка замедлите дефицит",
+            description = "Среднее снижение: ${abs(progress.averageWeeklyWeightChangeKg).format(1)} кг/нед. Добавьте 150-250 ккал/день или уменьшите кардио, чтобы защитить мышцы.",
             priority = RecommendationPriority.High,
         )
     }
 
     if (bodyFatStalledForTwoWeeks(measurementsDescending)) {
         recommendations += Recommendation(
-            title = "Restart fat-loss momentum",
-            description = "Body fat has not decreased for roughly two weeks. Increase steps by 1,500-2,000/day and control salty meals that can mask progress.",
+            title = "Верните динамику снижения жира",
+            description = "Процент жира не снижается около двух недель. Добавьте 1500-2000 шагов в день и контролируйте соленую еду, которая может маскировать прогресс.",
             priority = RecommendationPriority.Medium,
         )
     }
 
     if (latest != null && (latest.skeletalMuscleKg < PlanTargets.InitialSkeletalMuscleKg || (previous != null && latest.skeletalMuscleKg < previous.skeletalMuscleKg))) {
         recommendations += Recommendation(
-            title = "Protect skeletal muscle",
-            description = "Raise protein consistency, keep 2-3 reps in reserve on compounds, and progress one variable each week: reps, load, or sets.",
+            title = "Защитите скелетные мышцы",
+            description = "Держите белок стабильнее, оставляйте 2-3 повтора в запасе в базовых упражнениях и прогрессируйте один параметр в неделю: повторы, вес или подходы.",
             priority = RecommendationPriority.High,
         )
     }
 
     if (recommendations.isEmpty()) {
         recommendations += Recommendation(
-            title = "Stay the course",
-            description = "Your trend is aligned with the 12-week aesthetic target. Keep habits consistent and review measurements weekly.",
+            title = "Продолжайте по плану",
+            description = "Тренд совпадает с 12-недельной целью. Держите привычки стабильными и пересматривайте замеры раз в неделю.",
             priority = RecommendationPriority.Low,
         )
     }

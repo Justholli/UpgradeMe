@@ -11,6 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [MeasurementEntry::class, HabitEntry::class, WorkoutPlanDay::class, ScaleScreenshotImport::class],
     version = 2,
+    exportSchema = false,
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

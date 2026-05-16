@@ -3,15 +3,17 @@
 package com.aesthetic.tracker.ui
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,11 +27,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -43,6 +43,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -62,20 +63,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.aesthetic.tracker.R
 import com.aesthetic.tracker.data.HabitEntry
 import com.aesthetic.tracker.data.MeasurementEntry
 import com.aesthetic.tracker.data.Recommendation
 import com.aesthetic.tracker.data.RecommendationPriority
 import com.aesthetic.tracker.data.ScaleScreenshotImport
 import com.aesthetic.tracker.domain.FoodGoal
-import com.aesthetic.tracker.domain.FoodRecommendations
 import com.aesthetic.tracker.domain.PlanTargets
 import com.aesthetic.tracker.domain.format
 import java.io.File
-import java.net.URLEncoder
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,18 +85,19 @@ fun AestheticApp(state: AestheticState, onAction: (AestheticAction) -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Aesthetic Tracker", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 TrackerScreen.entries.forEach { screen ->
+                    val label = stringResource(screen.labelRes)
                     NavigationBarItem(
                         selected = state.selectedScreen == screen,
                         onClick = { onAction(AestheticAction.SelectScreen(screen)) },
-                        icon = { Icon(screen.icon(), contentDescription = screen.label) },
-                        label = { Text(screen.label) },
+                        icon = { Icon(screen.icon(), contentDescription = label) },
+                        label = { Text(label) },
                     )
                 }
             }
@@ -110,12 +112,12 @@ fun AestheticApp(state: AestheticState, onAction: (AestheticAction) -> Unit) {
             if (state.isLoading) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             } else {
-                when (state.selectedScreen) {
-                    TrackerScreen.Dashboard -> DashboardScreen(state)
-                    TrackerScreen.TodayPlan -> TodayPlanScreen(state, onAction)
-                    TrackerScreen.Measurements -> MeasurementsScreen(state, onAction)
-                    TrackerScreen.Recommendations -> RecommendationsScreen(state, onAction)
-                    TrackerScreen.Food -> FoodRecommendationScreen(state, onAction)
+                Crossfade(targetState = state.selectedScreen, label = "screen_transition") { screen ->
+                    when (screen) {
+                        TrackerScreen.GeneralData -> DashboardScreen(state)
+                        TrackerScreen.Today -> TodayPlanScreen(state, onAction)
+                        TrackerScreen.UploadResults -> MeasurementsScreen(state, onAction)
+                    }
                 }
             }
         }
@@ -131,8 +133,8 @@ fun DashboardScreen(state: AestheticState) {
     ) {
         item {
             HeaderCard(
-                title = "Week ${state.planPosition.week}, Day ${state.planPosition.day}",
-                subtitle = "12-week recomposition plan • ${(state.planPosition.percentComplete * 100).format(0)}% complete",
+                title = stringResource(R.string.week_day_title, state.planPosition.week, state.planPosition.day),
+                subtitle = stringResource(R.string.plan_progress_subtitle, (state.planPosition.percentComplete * 100).toDouble().format(0)),
             ) {
                 LinearProgressIndicator(
                     progress = { state.planPosition.percentComplete },
@@ -141,57 +143,87 @@ fun DashboardScreen(state: AestheticState) {
             }
         }
         item {
-            SectionTitle("Progress from baseline")
+            SectionTitle(stringResource(R.string.progress_from_baseline))
             MetricGrid(
                 metrics = listOf(
-                    "Weight" to "${state.progress.weightChangeKg.format(1)} kg",
-                    "Body fat" to "${state.progress.bodyFatChangePercent.format(1)}%",
-                    "Muscle" to "+${state.progress.skeletalMuscleChangeKg.format(1)} kg".replace("+-", "-"),
-                    "Pulse" to "${state.progress.pulseChange} bpm",
+                    stringResource(R.string.metric_weight) to "${state.progress.weightChangeKg.format(1)} kg",
+                    stringResource(R.string.metric_body_fat) to "${state.progress.bodyFatChangePercent.format(1)}%",
+                    stringResource(R.string.metric_muscle) to "+${state.progress.skeletalMuscleChangeKg.format(1)} kg".replace("+-", "-"),
+                    stringResource(R.string.metric_pulse) to "${state.progress.pulseChange} bpm",
                 ),
             )
         }
         item {
-            SectionTitle("Target range")
+            SectionTitle(stringResource(R.string.target_range))
             InfoCard {
-                Text("Weight: ${PlanTargets.TargetMinWeightKg.format(0)}-${PlanTargets.TargetMaxWeightKg.format(0)} kg")
-                Text("Body fat: ${PlanTargets.TargetMinBodyFatPercent.format(0)}-${PlanTargets.TargetMaxBodyFatPercent.format(0)}%")
-                Text("Skeletal muscle: +${PlanTargets.TargetMuscleGainMinKg.format(0)}-${PlanTargets.TargetMuscleGainMaxKg.format(0)} kg")
-                Text("Pulse: lower resting trend from ${PlanTargets.InitialPulse} bpm")
+                Text(stringResource(R.string.target_weight, PlanTargets.TargetMinWeightKg.format(0), PlanTargets.TargetMaxWeightKg.format(0)))
+                Text(stringResource(R.string.target_body_fat, PlanTargets.TargetMinBodyFatPercent.format(0), PlanTargets.TargetMaxBodyFatPercent.format(0)))
+                Text(stringResource(R.string.target_skeletal_muscle, PlanTargets.TargetMuscleGainMinKg.format(0), PlanTargets.TargetMuscleGainMaxKg.format(0)))
+                Text(stringResource(R.string.target_pulse, PlanTargets.InitialPulse))
             }
         }
         item {
-            SectionTitle("Today's habits")
+            SectionTitle(stringResource(R.string.todays_habits))
             HabitSummary(state.currentHabit)
         }
         item {
-            SectionTitle("Latest measurement")
-            state.measurements.firstOrNull()?.let { MeasurementCard(it) } ?: EmptyCard("No measurements yet. Add today's check-in to begin tracking trends.")
+            SectionTitle(stringResource(R.string.latest_measurement))
+            state.measurements.firstOrNull()?.let { MeasurementCard(it) } ?: EmptyCard(stringResource(R.string.empty_measurements))
         }
     }
 }
 
 @Composable
 fun TodayPlanScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) {
+    val generatedPlan = state.generatedTodayPlan
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            HeaderCard("Today's plan", "Week ${state.planPosition.week} • Day ${state.planPosition.day}") {
-                Text(state.currentPlanDay?.focus ?: "Build consistency", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        item {
-            SectionTitle(state.currentPlanDay?.title ?: "Workout")
-            InfoCard {
-                state.currentPlanDay?.exercises.orEmpty().forEachIndexed { index, exercise ->
-                    Text("${index + 1}. $exercise")
+            HeaderCard(
+                stringResource(R.string.todays_plan),
+                stringResource(R.string.week_day_short, state.planPosition.week, state.planPosition.day),
+            ) {
+                Text(generatedPlan?.focus ?: state.currentPlanDay?.focus ?: stringResource(R.string.fallback_focus), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Button(onClick = { onAction(AestheticAction.GenerateTodayPlan) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(if (generatedPlan == null) R.string.generate_today_plan else R.string.refresh_today_plan))
                 }
             }
         }
-        item { SectionTitle("Daily habit checklist") }
+        item {
+            SectionTitle(stringResource(R.string.food_goal))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FoodGoal.entries.forEach { goal ->
+                    val label = stringResource(goal.labelRes)
+                    FilterChip(
+                        selected = state.selectedFoodGoal == goal,
+                        onClick = { onAction(AestheticAction.SelectFoodGoal(goal)) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+        }
+        if (generatedPlan != null) {
+            item { TodayPlanBlockCard(stringResource(R.string.workout), generatedPlan.training) }
+            item { TodayPlanBlockCard(stringResource(R.string.nutrition_today), generatedPlan.nutrition) }
+            item { TodayPlanBlockCard(stringResource(R.string.recovery_today), generatedPlan.recovery) }
+            item { TodayPlanBlockCard(stringResource(R.string.execution_checkpoints), generatedPlan.checkpoints) }
+        } else {
+            item {
+                SectionTitle(state.currentPlanDay?.title ?: stringResource(R.string.workout))
+                InfoCard {
+                    state.currentPlanDay?.exercises.orEmpty().forEachIndexed { index, exercise ->
+                        Text("${index + 1}. $exercise")
+                    }
+                    if (state.measurements.isEmpty()) {
+                        Text(stringResource(R.string.today_plan_needs_data), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+        item { SectionTitle(stringResource(R.string.daily_habit_checklist)) }
         items(HabitKind.entries) { habit ->
             HabitRow(habit, state.currentHabit.isDone(habit)) {
                 onAction(AestheticAction.ToggleHabit(habit))
@@ -201,14 +233,25 @@ fun TodayPlanScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) 
 }
 
 @Composable
+private fun TodayPlanBlockCard(title: String, lines: List<String>) {
+    InfoCard {
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        lines.forEachIndexed { index, line ->
+            Text("${index + 1}. $line", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
 fun MeasurementsScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    var weight by remember { mutableStateOf(state.measurements.firstOrNull()?.weightKg?.toString() ?: "70.4") }
-    var bodyFat by remember { mutableStateOf(state.measurements.firstOrNull()?.bodyFatPercent?.toString() ?: "18.0") }
-    var muscle by remember { mutableStateOf(state.measurements.firstOrNull()?.skeletalMuscleKg?.toString() ?: "29.0") }
-    var pulse by remember { mutableStateOf(state.measurements.firstOrNull()?.pulse?.toString() ?: "102") }
-    var visceral by remember { mutableStateOf(state.measurements.firstOrNull()?.visceralFat?.toString() ?: "8") }
-    var water by remember { mutableStateOf(state.measurements.firstOrNull()?.waterPercent?.toString() ?: "55.0") }
+    val latestMeasurement = state.measurements.firstOrNull()
+    var weight by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.weightKg?.toString() ?: "70.4") }
+    var bodyFat by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.bodyFatPercent?.toString() ?: "18.0") }
+    var muscle by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.skeletalMuscleKg?.toString() ?: "29.0") }
+    var pulse by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.pulse?.toString() ?: "102") }
+    var visceral by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.visceralFat?.toString() ?: "8") }
+    var water by remember(latestMeasurement?.date) { mutableStateOf(latestMeasurement?.waterPercent?.toString() ?: "55.0") }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             copyScaleScreenshot(context, it)?.let { path ->
@@ -231,24 +274,29 @@ fun MeasurementsScreen(state: AestheticState, onAction: (AestheticAction) -> Uni
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            SectionTitle("Smart scale screenshot import")
+            HeaderCard(stringResource(R.string.upload_results_overview), stringResource(R.string.upload_results_subtitle)) {
+                latestMeasurement?.let { MeasurementCard(it) } ?: Text(stringResource(R.string.empty_measurements), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item {
+            SectionTitle(stringResource(R.string.smart_scale_import))
             InfoCard {
-                Text("Photos stay local. AI parsing runs only after you tap the parser button, and you confirm values before saving a MeasurementEntry.")
+                Text(stringResource(R.string.smart_scale_privacy))
                 Button(modifier = Modifier.fillMaxWidth(), onClick = { imagePicker.launch("image/*") }) {
-                    Text("Upload/select smart scale screenshot")
+                    Text(stringResource(R.string.upload_scale_screenshot))
                 }
             }
         }
         items(state.scaleImports) { scaleImport -> ScaleImportCard(scaleImport, onAction) }
         item {
-            SectionTitle("Manual measurement")
+            SectionTitle(stringResource(R.string.manual_measurement))
             InfoCard {
-                NumberField("Weight (kg)", weight) { weight = it }
-                NumberField("Body fat (%)", bodyFat) { bodyFat = it }
-                NumberField("Skeletal muscle (kg)", muscle) { muscle = it }
-                NumberField("Resting pulse (bpm)", pulse) { pulse = it }
-                NumberField("Visceral fat", visceral) { visceral = it }
-                NumberField("Water (%)", water) { water = it }
+                NumberField(stringResource(R.string.field_weight_kg), weight) { weight = it }
+                NumberField(stringResource(R.string.field_body_fat_percent), bodyFat) { bodyFat = it }
+                NumberField(stringResource(R.string.field_skeletal_muscle_kg), muscle) { muscle = it }
+                NumberField(stringResource(R.string.field_resting_pulse), pulse) { pulse = it }
+                NumberField(stringResource(R.string.field_visceral_fat), visceral) { visceral = it }
+                NumberField(stringResource(R.string.field_water_percent), water) { water = it }
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
@@ -263,35 +311,12 @@ fun MeasurementsScreen(state: AestheticState, onAction: (AestheticAction) -> Uni
                             ),
                         )
                     },
-                ) { Text("Save check-in") }
+                ) { Text(stringResource(R.string.save_check_in)) }
             }
         }
-        item { SectionTitle("History") }
+        item { SectionTitle(stringResource(R.string.history)) }
         items(state.measurements) { entry -> MeasurementCard(entry, onAction) }
-    }
-}
-
-@Composable
-fun RecommendationsScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            HeaderCard("Coach recommendations", "Generated from pulse, fat loss rate, body-fat trend, and muscle trend") {
-                Text("Update measurements weekly for more accurate trend advice.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Button(onClick = { onAction(AestheticAction.GenerateAiAnalysis) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Generate AI analysis")
-                }
-            }
-        }
-        state.aiAnalysis?.let { analysis ->
-            item { AiAnalysisCard("What improved", analysis.improved) }
-            item { AiAnalysisCard("What got worse", analysis.worsened) }
-            item { AiAnalysisCard("What to change today", analysis.changeToday) }
-            item { AiAnalysisCard("Risk flags", analysis.riskFlags) }
-        }
+        item { SectionTitle(stringResource(R.string.result_recommendations)) }
         items(state.recommendations) { recommendation -> RecommendationCard(recommendation) }
     }
 }
@@ -299,90 +324,40 @@ fun RecommendationsScreen(state: AestheticState, onAction: (AestheticAction) -> 
 @Composable
 private fun ScaleImportCard(scaleImport: ScaleScreenshotImport, onAction: (AestheticAction) -> Unit) {
     InfoCard {
-        Text("Local screenshot", fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.local_screenshot), fontWeight = FontWeight.Bold)
         Text(scaleImport.localPath, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (scaleImport.isParsed) {
-            Text("Parsed values for confirmation", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.parsed_values), fontWeight = FontWeight.Bold)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ParsedChip("Weight", scaleImport.parsedWeightKg?.let { "${it.format(1)} kg" })
-                ParsedChip("Body fat", scaleImport.parsedBodyFatPercent?.let { "${it.format(1)}%" })
-                ParsedChip("BMI", scaleImport.parsedBmi?.let { it.format(1) })
-                ParsedChip("Muscle mass", scaleImport.parsedMuscleMassKg?.let { "${it.format(1)} kg" })
-                ParsedChip("Skeletal muscle", scaleImport.parsedSkeletalMuscleKg?.let { "${it.format(1)} kg" })
-                ParsedChip("Water", scaleImport.parsedWaterPercent?.let { "${it.format(1)}%" })
-                ParsedChip("Protein", scaleImport.parsedProteinPercent?.let { "${it.format(1)}%" })
-                ParsedChip("Visceral fat", scaleImport.parsedVisceralFat?.toString())
-                ParsedChip("BMR", scaleImport.parsedBasalMetabolismKcal?.let { "$it kcal" })
-                ParsedChip("Bio age", scaleImport.parsedBiologicalAge?.toString())
-                ParsedChip("Pulse", scaleImport.parsedPulse?.let { "$it bpm" })
+                ParsedChip(stringResource(R.string.parsed_weight), scaleImport.parsedWeightKg?.let { "${it.format(1)} kg" })
+                ParsedChip(stringResource(R.string.parsed_body_fat), scaleImport.parsedBodyFatPercent?.let { "${it.format(1)}%" })
+                ParsedChip(stringResource(R.string.parsed_bmi), scaleImport.parsedBmi?.let { it.format(1) })
+                ParsedChip(stringResource(R.string.parsed_muscle_mass), scaleImport.parsedMuscleMassKg?.let { "${it.format(1)} kg" })
+                ParsedChip(stringResource(R.string.parsed_skeletal_muscle), scaleImport.parsedSkeletalMuscleKg?.let { "${it.format(1)} kg" })
+                ParsedChip(stringResource(R.string.parsed_water), scaleImport.parsedWaterPercent?.let { "${it.format(1)}%" })
+                ParsedChip(stringResource(R.string.parsed_protein), scaleImport.parsedProteinPercent?.let { "${it.format(1)}%" })
+                ParsedChip(stringResource(R.string.parsed_visceral_fat), scaleImport.parsedVisceralFat?.toString())
+                ParsedChip(stringResource(R.string.parsed_bmr), scaleImport.parsedBasalMetabolismKcal?.let { "$it kcal" })
+                ParsedChip(stringResource(R.string.parsed_bio_age), scaleImport.parsedBiologicalAge?.toString())
+                ParsedChip(stringResource(R.string.parsed_pulse), scaleImport.parsedPulse?.let { "$it bpm" })
             }
             Button(onClick = { onAction(AestheticAction.ConfirmParsedScaleImport(scaleImport)) }, modifier = Modifier.fillMaxWidth()) {
-                Text("Confirm and save MeasurementEntry")
+                Text(stringResource(R.string.confirm_parsed_entry))
             }
         } else {
             Button(onClick = { onAction(AestheticAction.ParseScaleImport(scaleImport)) }, modifier = Modifier.fillMaxWidth()) {
-                Text("Send image to AI parser")
+                Text(stringResource(R.string.send_to_ai_parser))
             }
         }
         Button(onClick = { onAction(AestheticAction.DeleteScaleImport(scaleImport)) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Delete local photo")
+            Text(stringResource(R.string.delete_local_photo))
         }
     }
 }
 
 @Composable
 private fun ParsedChip(label: String, value: String?) {
-    AssistChip(onClick = {}, label = { Text("$label: ${value ?: "—"}") })
-}
-
-@Composable
-private fun AiAnalysisCard(title: String, lines: List<String>) {
-    InfoCard {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        lines.forEach { Text("• $it", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-    }
-}
-
-@Composable
-fun FoodRecommendationScreen(state: AestheticState, onAction: (AestheticAction) -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val dishes = FoodRecommendations.filter { state.selectedFoodGoal in it.goals }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            HeaderCard("Food recommendations", "Delivery-friendly meals for today's goal") {
-                Text("MVP uses Yandex Food search links only; no API integration yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        item {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FoodGoal.entries.forEach { goal ->
-                    AssistChip(
-                        onClick = { onAction(AestheticAction.SelectFoodGoal(goal)) },
-                        label = { Text(if (state.selectedFoodGoal == goal) "✓ ${goal.label}" else goal.label) },
-                    )
-                }
-            }
-        }
-        items(dishes) { dish -> FoodDishCard(dish, context) }
-    }
-}
-
-@Composable
-private fun FoodDishCard(dish: com.aesthetic.tracker.domain.FoodRecommendation, context: Context) {
-    InfoCard {
-        Text(dish.dish, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text("Calories: ${dish.caloriesEstimate}")
-        Text("Protein: ${dish.proteinEstimate}")
-        Text("Why it fits: ${dish.whyItFits}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("Avoid: ${dish.avoid}", color = MaterialTheme.colorScheme.error)
-        Button(onClick = { openYandexFood(context, dish.yandexQuery) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Открыть в Яндекс Еде")
-        }
-    }
+    AssistChip(onClick = {}, label = { Text(stringResource(R.string.parsed_chip, label, value ?: stringResource(R.string.parsed_unknown))) })
 }
 
 private fun copyScaleScreenshot(context: Context, uri: Uri): String? {
@@ -396,16 +371,13 @@ private fun copyScaleScreenshot(context: Context, uri: Uri): String? {
     }.getOrNull()
 }
 
-private fun openYandexFood(context: Context, query: String) {
-    val encoded = URLEncoder.encode(query, "UTF-8")
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://eda.yandex.ru/search?text=$encoded"))
-    context.startActivity(intent)
-}
-
 @Composable
 private fun HeaderCard(title: String, subtitle: String, content: @Composable () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Card(
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(Modifier.animateContentSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
             content()
@@ -422,7 +394,11 @@ private fun SectionTitle(text: String) {
 private fun MetricGrid(metrics: List<Pair<String, String>>) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         metrics.forEach { (label, value) ->
-            Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+            Card(
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            ) {
                 Column(Modifier.padding(16.dp)) {
                     Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -440,8 +416,8 @@ private fun HabitSummary(habit: HabitEntry) {
             CircularProgressIndicator(progress = { done / HabitKind.entries.size.toFloat() }, modifier = Modifier.size(56.dp))
             Spacer(Modifier.width(16.dp))
             Column {
-                Text("$done/${HabitKind.entries.size} complete", fontWeight = FontWeight.Bold)
-                Text("Water • Steps • Protein • Workout • Posture • Sleep", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.habit_complete_count, done, HabitKind.entries.size), fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.habit_summary), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -449,16 +425,22 @@ private fun HabitSummary(habit: HabitEntry) {
 
 @Composable
 private fun HabitRow(habit: HabitKind, checked: Boolean, onToggle: () -> Unit) {
-    Card(onClick = onToggle, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    val label = stringResource(habit.labelRes)
+    Card(
+        onClick = onToggle,
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .animateContentSize()
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(habit.icon(), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(habit.icon(), contentDescription = label, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
-            Text(habit.label, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+            Text(label, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
             Checkbox(checked = checked, onCheckedChange = { onToggle() })
         }
     }
@@ -473,20 +455,20 @@ private fun MeasurementCard(entry: MeasurementEntry, onAction: ((AestheticAction
         }
         Spacer(Modifier.height(8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(onClick = {}, label = { Text("Fat ${entry.bodyFatPercent.format(1)}%") })
-            AssistChip(onClick = {}, label = { Text("Muscle ${entry.skeletalMuscleKg.format(1)} kg") })
-            AssistChip(onClick = {}, label = { Text("Pulse ${entry.pulse}") })
-            AssistChip(onClick = {}, label = { Text("Visceral ${entry.visceralFat}") })
-            AssistChip(onClick = {}, label = { Text("Water ${entry.waterPercent.format(1)}%") })
-            entry.bmi?.let { AssistChip(onClick = {}, label = { Text("BMI ${it.format(1)}") }) }
-            entry.muscleMassKg?.let { AssistChip(onClick = {}, label = { Text("Muscle mass ${it.format(1)} kg") }) }
-            entry.proteinPercent?.let { AssistChip(onClick = {}, label = { Text("Protein ${it.format(1)}%") }) }
-            entry.basalMetabolismKcal?.let { AssistChip(onClick = {}, label = { Text("BMR $it kcal") }) }
-            entry.biologicalAge?.let { AssistChip(onClick = {}, label = { Text("Bio age $it") }) }
+            AssistChip(onClick = {}, label = { Text(stringResource(R.string.fat_chip, entry.bodyFatPercent.format(1))) })
+            AssistChip(onClick = {}, label = { Text(stringResource(R.string.muscle_chip, entry.skeletalMuscleKg.format(1))) })
+            AssistChip(onClick = {}, label = { Text(stringResource(R.string.pulse_chip, entry.pulse)) })
+            AssistChip(onClick = {}, label = { Text(stringResource(R.string.visceral_chip, entry.visceralFat)) })
+            AssistChip(onClick = {}, label = { Text(stringResource(R.string.water_chip, entry.waterPercent.format(1))) })
+            entry.bmi?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.bmi_chip, it.format(1))) }) }
+            entry.muscleMassKg?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.muscle_mass_chip, it.format(1))) }) }
+            entry.proteinPercent?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.protein_chip, it.format(1))) }) }
+            entry.basalMetabolismKcal?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.bmr_chip, it)) }) }
+            entry.biologicalAge?.let { AssistChip(onClick = {}, label = { Text(stringResource(R.string.bio_age_chip, it)) }) }
         }
-        entry.scalePhotoPath?.let { Text("Photo stored locally: $it", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        entry.scalePhotoPath?.let { Text(stringResource(R.string.photo_stored_locally, it), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         onAction?.let {
-            Button(onClick = { it(AestheticAction.DeleteMeasurement(entry)) }, modifier = Modifier.fillMaxWidth()) { Text("Delete parsed entry") }
+            Button(onClick = { it(AestheticAction.DeleteMeasurement(entry)) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.delete_parsed_entry)) }
         }
     }
 }
@@ -498,12 +480,16 @@ private fun RecommendationCard(recommendation: Recommendation) {
         RecommendationPriority.Medium -> MaterialTheme.colorScheme.tertiary
         RecommendationPriority.Low -> MaterialTheme.colorScheme.primary
     }
-    Card(border = BorderStroke(1.dp, color.copy(alpha = 0.5f)), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Card(
+        border = BorderStroke(1.dp, color.copy(alpha = 0.5f)),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(Modifier.animateContentSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(10.dp).background(color, CircleShape))
                 Spacer(Modifier.width(10.dp))
-                Text(recommendation.priority.name, color = color, fontWeight = FontWeight.Bold)
+                Text(recommendation.priority.label(), color = color, fontWeight = FontWeight.Bold)
             }
             Text(recommendation.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(recommendation.description, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -515,9 +501,12 @@ private fun RecommendationCard(recommendation: Recommendation) {
 private fun EmptyCard(text: String) = InfoCard { Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
 @Composable
-private fun InfoCard(content: @Composable Column.() -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+private fun InfoCard(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(Modifier.fillMaxWidth().animateContentSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
     }
 }
 
@@ -543,18 +532,23 @@ private fun HabitEntry.isDone(kind: HabitKind): Boolean = when (kind) {
 }
 
 private fun TrackerScreen.icon(): ImageVector = when (this) {
-    TrackerScreen.Dashboard -> Icons.Default.Insights
-    TrackerScreen.TodayPlan -> Icons.Default.FitnessCenter
-    TrackerScreen.Measurements -> Icons.Default.MonitorHeart
-    TrackerScreen.Recommendations -> Icons.Default.CheckCircle
-    TrackerScreen.Food -> Icons.Default.Restaurant
+    TrackerScreen.GeneralData -> Icons.Default.Insights
+    TrackerScreen.Today -> Icons.Default.FitnessCenter
+    TrackerScreen.UploadResults -> Icons.Default.MonitorHeart
 }
 
 private fun HabitKind.icon(): ImageVector = when (this) {
     HabitKind.Water -> Icons.Default.WaterDrop
-    HabitKind.Steps -> Icons.Default.DirectionsWalk
+    HabitKind.Steps -> Icons.AutoMirrored.Filled.DirectionsWalk
     HabitKind.Protein -> Icons.Default.Restaurant
     HabitKind.Workout -> Icons.Default.FitnessCenter
     HabitKind.Posture -> Icons.Default.SelfImprovement
     HabitKind.Sleep -> Icons.Default.MonitorHeart
+}
+
+@Composable
+private fun RecommendationPriority.label(): String = when (this) {
+    RecommendationPriority.High -> stringResource(R.string.priority_high)
+    RecommendationPriority.Medium -> stringResource(R.string.priority_medium)
+    RecommendationPriority.Low -> stringResource(R.string.priority_low)
 }
